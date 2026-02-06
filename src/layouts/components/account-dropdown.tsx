@@ -22,7 +22,7 @@ export default function AccountDropdown() {
 		} catch (error) {
 			console.log(error);
 		} finally {
-			replace("/auth/login");
+			replace("/auth/register");
 		}
 	};
 
@@ -43,7 +43,7 @@ export default function AccountDropdown() {
 				</div>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem asChild>
-					<NavLink to="https://workhub.app/docs" target="_blank">
+					<NavLink to="https://fwts.app/docs" target="_blank">
 						{t("sys.docs")}
 					</NavLink>
 				</DropdownMenuItem>

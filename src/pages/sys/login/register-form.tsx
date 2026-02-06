@@ -1,24 +1,25 @@
-import userService from "@/api/services/userService";
 import { Button } from "@/ui/button";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/ui/form";
 import { Input } from "@/ui/input";
-import { useMutation } from "@tanstack/react-query";
+import { useSignUp } from "@/store/userStore";
+import userStore from "@/store/userStore";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { useLocation, useNavigate } from "react-router";
 import { ReturnButton } from "./components/ReturnButton";
 import { LoginStateEnum, useLoginStateContext } from "./providers/login-provider";
 
 function RegisterForm() {
 	const { t } = useTranslation();
 	const { loginState, backToLogin } = useLoginStateContext();
-
-	const signUpMutation = useMutation({
-		mutationFn: userService.signup,
-	});
+	const signUp = useSignUp();
+	const navigate = useNavigate();
+	const location = useLocation();
 
 	const form = useForm({
 		defaultValues: {
-			username: "",
+			first_name: "",
+			last_name: "",
 			email: "",
 			password: "",
 			confirmPassword: "",
@@ -26,9 +27,14 @@ function RegisterForm() {
 	});
 
 	const onFinish = async (values: any) => {
-		console.log("Received values of form: ", values);
-		await signUpMutation.mutateAsync(values);
-		backToLogin();
+		const { confirmPassword, ...payload } = values;
+		await signUp(payload);
+		const { accessToken } = userStore.getState().userToken;
+		if (accessToken) {
+			navigate("/", { replace: true });
+			return;
+		}
+		navigate("/auth/login", { replace: true });
 	};
 
 	if (loginState !== LoginStateEnum.REGISTER) return null;
@@ -42,12 +48,26 @@ function RegisterForm() {
 
 				<FormField
 					control={form.control}
-					name="username"
-					rules={{ required: t("sys.login.accountPlaceholder") }}
+					name="first_name"
+					rules={{ required: t("sys.login.firstNamePlaceholder") }}
 					render={({ field }) => (
 						<FormItem>
 							<FormControl>
-								<Input placeholder={t("sys.login.userName")} {...field} />
+								<Input placeholder={t("sys.login.firstName")} {...field} />
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<FormField
+					control={form.control}
+					name="last_name"
+					rules={{ required: t("sys.login.lastNamePlaceholder") }}
+					render={({ field }) => (
+						<FormItem>
+							<FormControl>
+								<Input placeholder={t("sys.login.lastName")} {...field} />
 							</FormControl>
 							<FormMessage />
 						</FormItem>
@@ -57,11 +77,11 @@ function RegisterForm() {
 				<FormField
 					control={form.control}
 					name="email"
-					rules={{ required: t("sys.login.emaildPlaceholder") }}
+					rules={{ required: t("sys.login.emailPlaceholder") }}
 					render={({ field }) => (
 						<FormItem>
 							<FormControl>
-								<Input placeholder={t("sys.login.email")} {...field} />
+								<Input type="email" placeholder={t("sys.login.email")} {...field} />
 							</FormControl>
 							<FormMessage />
 						</FormItem>
@@ -114,7 +134,15 @@ function RegisterForm() {
 					</a>
 				</div>
 
-				<ReturnButton onClick={backToLogin} />
+				<ReturnButton
+					onClick={() => {
+						if (location.pathname === "/auth/register") {
+							navigate("/auth/login");
+							return;
+						}
+						backToLogin();
+					}}
+				/>
 			</form>
 		</Form>
 	);

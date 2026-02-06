@@ -200,15 +200,6 @@ export const DB_MENU: Menu[] = [
 		component: "/pages/components/scroll",
 	},
 	{
-		id: "components_i18n",
-		parentId: "components",
-		name: "sys.nav.i18n",
-		code: "components:i18n",
-		type: MENU,
-		path: "/components/multi-language",
-		component: "/pages/components/multi-language",
-	},
-	{
 		id: "components_upload",
 		parentId: "components",
 		name: "sys.nav.upload",
@@ -354,9 +345,9 @@ export const DB_MENU: Menu[] = [
 ];
 
 export const DB_USER: User[] = [
-	{ id: "user_admin_id", username: "admin", password: "demo1234", avatar: faker.image.avatarGitHub(), email: "admin@workhub.com" },
-	{ id: "user_test_id", username: "test", password: "demo1234", avatar: faker.image.avatarGitHub(), email: "test@workhub.com" },
-	{ id: "user_guest_id", username: "guest", password: "demo1234", avatar: faker.image.avatarGitHub(), email: "guest@workhub.com" },
+{ id: "user_admin_id", username: "admin", password: "demo1234", avatar: faker.image.avatarGitHub(), email: "admin@fwts.com" },
+{ id: "user_test_id", username: "test", password: "demo1234", avatar: faker.image.avatarGitHub(), email: "test@fwts.com" },
+{ id: "user_guest_id", username: "guest", password: "demo1234", avatar: faker.image.avatarGitHub(), email: "guest@fwts.com" },
 ];
 
 export const DB_ROLE: Role[] = [

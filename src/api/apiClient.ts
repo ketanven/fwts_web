@@ -14,25 +14,46 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
 	(config) => {
-		config.headers.Authorization = "Bearer Token";
+		const { userToken } = userStore.getState();
+		const accessToken = userToken?.accessToken;
+		config.headers = config.headers ?? {};
+		if (accessToken) {
+			config.headers.Authorization = `Bearer ${accessToken}`;
+		} else {
+			delete config.headers.Authorization;
+		}
 		return config;
 	},
 	(error) => Promise.reject(error),
 );
 
 axiosInstance.interceptors.response.use(
-	(res: AxiosResponse<Result<any>>) => {
+	(res: AxiosResponse<Result<any> | any>) => {
 		if (!res.data) throw new Error(t("sys.api.apiRequestFailed"));
-		const { status, data, message } = res.data;
+
+		const isWrapped =
+			typeof res.data === "object" &&
+			res.data !== null &&
+			"status" in res.data &&
+			"data" in res.data;
+
+		if (!isWrapped) {
+			return res.data;
+		}
+
+		const { status, data, message } = res.data as Result<any>;
 		if (status === ResultStatus.SUCCESS) {
 			return data;
 		}
 		throw new Error(message || t("sys.api.apiRequestFailed"));
 	},
-	(error: AxiosError<Result>) => {
+	(error: AxiosError<Result | any>) => {
 		const { response, message } = error || {};
+		const shouldSkipToast = (error.config?.headers as Record<string, any>)?.["x-skip-error-toast"];
 		const errMsg = response?.data?.message || message || t("sys.api.errorMessage");
-		toast.error(errMsg, { position: "top-center" });
+		if (!shouldSkipToast) {
+			toast.error(errMsg, { position: "top-center" });
+		}
 		if (response?.status === 401) {
 			userStore.getState().actions.clearUserInfoAndToken();
 		}

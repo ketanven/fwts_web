@@ -1,33 +1,45 @@
 import apiClient from "../apiClient";
+import { USER_API } from "../endpoints";
 
 import type { UserInfo, UserToken } from "#/entity";
 
 export interface SignInReq {
-	username: string;
+	email: string;
 	password: string;
 }
 
-export interface SignUpReq extends SignInReq {
+export interface SignUpReq {
+	first_name: string;
+	last_name: string;
 	email: string;
+	password: string;
 }
-export type SignInRes = UserToken & { user: UserInfo };
+export type SignInRes = Partial<UserToken> & { user?: UserInfo } & Record<string, any>;
 
 export enum UserApi {
-	SignIn = "/auth/signin",
-	SignUp = "/auth/signup",
-	Logout = "/auth/logout",
-	Refresh = "/auth/refresh",
-	User = "/user",
+	SignIn = USER_API.login,
+	SignUp = USER_API.register,
+	Logout = USER_API.logout,
+	Refresh = USER_API.refresh,
+	Profile = USER_API.profile,
+	ChangePassword = USER_API.changePassword,
+	ForgotPassword = USER_API.forgotPassword,
+	ResetPassword = USER_API.resetPassword,
 }
 
-const signin = (data: SignInReq) => apiClient.post<SignInRes>({ url: UserApi.SignIn, data });
+const signin = (data: SignInReq) =>
+	apiClient.post<SignInRes>({
+		url: UserApi.SignIn,
+		data,
+		headers: { "x-skip-error-toast": true },
+	});
 const signup = (data: SignUpReq) => apiClient.post<SignInRes>({ url: UserApi.SignUp, data });
 const logout = () => apiClient.get({ url: UserApi.Logout });
-const findById = (id: string) => apiClient.get<UserInfo[]>({ url: `${UserApi.User}/${id}` });
+const profile = () => apiClient.get<UserInfo>({ url: UserApi.Profile, headers: { "x-skip-error-toast": true } });
 
 export default {
 	signin,
 	signup,
-	findById,
+	profile,
 	logout,
 };

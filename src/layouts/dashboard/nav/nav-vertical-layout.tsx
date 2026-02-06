@@ -28,7 +28,7 @@ export function NavVerticalLayout({ data, className }: Props) {
 	};
 	return (
 		<nav
-			data-slot="workhub-layout-nav"
+			data-slot="fwts-layout-nav"
 			className={cn("fixed inset-y-0 left-0 flex-col h-full bg-background border-r border-dashed z-nav transition-[width] duration-300 ease-in-out", className)}
 			style={{
 				width: navWidth,

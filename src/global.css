@@ -133,7 +133,7 @@
   --sidebar-ring: var(--colors-palette-primary-default);
 }
 
-/* workhub layout */
+/* fwts layout */
 :root{
   --layout-nav-width: 260px;
   --layout-nav-width-mini: 88px;

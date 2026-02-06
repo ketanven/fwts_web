@@ -13,7 +13,7 @@ export default function Header({ leftSlot }: HeaderProps) {
 	const { breadCrumb } = useSettings();
 	return (
 		<header
-			data-slot="workhub-layout-header"
+			data-slot="fwts-layout-header"
 			className={cn(
 				"sticky top-0 left-0 right-0 z-app-bar",
 				"flex items-center justify-between px-2 grow-0 shrink-0",

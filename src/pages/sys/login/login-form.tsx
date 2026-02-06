@@ -1,6 +1,4 @@
-import { DB_USER } from "@/_mock/assets_backup";
 import type { SignInReq } from "@/api/services/userService";
-import { Icon } from "@/components/icon";
 import { GLOBAL_CONFIG } from "@/global-config";
 import { useSignIn } from "@/store/userStore";
 import { Button } from "@/ui/button";
@@ -20,6 +18,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 	const { t } = useTranslation();
 	const [loading, setLoading] = useState(false);
 	const [remember, setRemember] = useState(true);
+	const [formError, setFormError] = useState("");
 	const navigatge = useNavigate();
 
 	const { loginState, setLoginState } = useLoginStateContext();
@@ -27,8 +26,8 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
 	const form = useForm<SignInReq>({
 		defaultValues: {
-			username: DB_USER[0].username,
-			password: DB_USER[0].password,
+			email: "",
+			password: "",
 		},
 	});
 
@@ -36,12 +35,16 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
 	const handleFinish = async (values: SignInReq) => {
 		setLoading(true);
+		setFormError("");
 		try {
 			await signIn(values);
 			navigatge(GLOBAL_CONFIG.defaultRoute, { replace: true });
 			toast.success(t("sys.login.loginSuccessTitle"), {
 				closeButton: true,
 			});
+		} catch (err: any) {
+			const message = err?.response?.data?.message || err?.message || t("sys.api.errorMessage");
+			setFormError(message);
 		} finally {
 			setLoading(false);
 		}
@@ -58,13 +61,13 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
 					<FormField
 						control={form.control}
-						name="username"
-						rules={{ required: t("sys.login.accountPlaceholder") }}
+						name="email"
+						rules={{ required: t("sys.login.emailPlaceholder") }}
 						render={({ field }) => (
 							<FormItem>
-								<FormLabel>{t("sys.login.userName")}</FormLabel>
+								<FormLabel>{t("sys.login.email")}</FormLabel>
 								<FormControl>
-									<Input placeholder={DB_USER.map((user) => user.username).join("/")} {...field} />
+									<Input type="email" placeholder={t("sys.login.email")} {...field} />
 								</FormControl>
 								<FormMessage />
 							</FormItem>
@@ -79,7 +82,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 							<FormItem>
 								<FormLabel>{t("sys.login.password")}</FormLabel>
 								<FormControl>
-									<Input type="password" placeholder={DB_USER[0].password} {...field} suppressHydrationWarning />
+									<Input type="password" placeholder={t("sys.login.password")} {...field} suppressHydrationWarning />
 								</FormControl>
 								<FormMessage />
 							</FormItem>
@@ -112,41 +115,9 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 						{t("sys.login.loginButton")}
 					</Button>
 
-					{/* 手机登录/二维码登录 */}
-					<div className="grid gap-4 sm:grid-cols-2">
-						<Button variant="outline" className="w-full" onClick={() => setLoginState(LoginStateEnum.MOBILE)}>
-							<Icon icon="uil:mobile-android" size={20} />
-							{t("sys.login.mobileSignInFormTitle")}
-						</Button>
-						<Button variant="outline" className="w-full" onClick={() => setLoginState(LoginStateEnum.QR_CODE)}>
-							<Icon icon="uil:qrcode-scan" size={20} />
-							{t("sys.login.qrSignInFormTitle")}
-						</Button>
-					</div>
+					{formError && <p className="text-sm text-red-500 text-center">{formError}</p>}
 
-					{/* 其他登录方式 */}
-					<div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
-						<span className="relative z-10 bg-background px-2 text-muted-foreground">{t("sys.login.otherSignIn")}</span>
-					</div>
-					<div className="flex cursor-pointer justify-around text-2xl">
-						<Button variant="ghost" size="icon">
-							<Icon icon="mdi:github" size={24} />
-						</Button>
-						<Button variant="ghost" size="icon">
-							<Icon icon="mdi:wechat" size={24} />
-						</Button>
-						<Button variant="ghost" size="icon">
-							<Icon icon="ant-design:google-circle-filled" size={24} />
-						</Button>
-					</div>
-
-					{/* 注册 */}
-					<div className="text-center text-sm">
-						{t("sys.login.noAccount")}
-						<Button variant="link" className="px-1" onClick={() => setLoginState(LoginStateEnum.REGISTER)}>
-							{t("sys.login.signUpFormTitle")}
-						</Button>
-					</div>
+					{/* Register link removed per requirements */}
 				</form>
 			</Form>
 		</div>

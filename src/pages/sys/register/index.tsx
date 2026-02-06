@@ -3,15 +3,13 @@ import Logo from "@/components/logo";
 import { GLOBAL_CONFIG } from "@/global-config";
 import SettingButton from "@/layouts/components/setting-button";
 import { useUserToken } from "@/store/userStore";
-import { Navigate } from "react-router";
-import LoginForm from "./login-form";
-import MobileForm from "./mobile-form";
-import { LoginProvider } from "./providers/login-provider";
-import QrCodeFrom from "./qrcode-form";
-import ResetForm from "./reset-form";
+import { Navigate, useNavigate } from "react-router";
+import RegisterForm from "../login/register-form";
+import { LoginProvider, LoginStateEnum } from "../login/providers/login-provider";
 
-function LoginPage() {
+function RegisterPage() {
 	const token = useUserToken();
+	const navigate = useNavigate();
 
 	if (token.accessToken) {
 		return <Navigate to={GLOBAL_CONFIG.defaultRoute} replace />;
@@ -21,18 +19,15 @@ function LoginPage() {
 		<div className="relative grid min-h-svh lg:grid-cols-2 bg-background">
 			<div className="flex flex-col gap-4 p-6 md:p-10">
 				<div className="flex justify-center gap-2 md:justify-start">
-					<div className="flex items-center gap-2 font-medium cursor-pointer">
+					<div className="flex items-center gap-2 font-medium cursor-pointer" onClick={() => navigate("/auth/login")}>
 						<Logo size={28} />
 						<span>{GLOBAL_CONFIG.appName}</span>
 					</div>
 				</div>
 				<div className="flex flex-1 items-center justify-center">
 					<div className="w-full max-w-xs">
-						<LoginProvider>
-							<LoginForm />
-							<MobileForm />
-							<QrCodeFrom />
-							<ResetForm />
+						<LoginProvider initialState={LoginStateEnum.REGISTER}>
+							<RegisterForm />
 						</LoginProvider>
 					</div>
 				</div>
@@ -48,4 +43,5 @@ function LoginPage() {
 		</div>
 	);
 }
-export default LoginPage;
+
+export default RegisterPage;

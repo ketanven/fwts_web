@@ -16,7 +16,7 @@ function QrCodeFrom() {
 			</div>
 
 			<div className="flex w-full flex-col items-center justify-center p-4">
-			<QRCodeSVG value="https://workhub.app" size={200} />
+			<QRCodeSVG value="https://fwts.app" size={200} />
 			</div>
 			<ReturnButton onClick={backToLogin} />
 		</>

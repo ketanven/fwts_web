@@ -244,15 +244,6 @@ const COMPONENTS_PERMISSION = {
 		// 	component: "/components/editor/index.tsx",
 		// },
 		{
-			id: "2501920741714350",
-			parentId: "2271615060673773",
-			label: "sys.nav.i18n",
-			name: "Multi Language",
-			type: PermissionType.MENU,
-			route: "i18n",
-			component: "/components/multi-language/index.tsx",
-		},
-		{
 			id: "2013577074467956",
 			parentId: "2271615060673773",
 			label: "sys.nav.upload",
@@ -544,7 +535,7 @@ export const ROLE_LIST = [ADMIN_ROLE, TEST_ROLE];
 export const DEFAULT_USER = {
 	id: "b34719e1-ce46-457e-9575-99505ecee828",
 	username: "admin",
-	email: "admin@workhub.com",
+	email: "admin@fwts.com",
 	avatar: faker.image.avatarGitHub(),
 	createdAt: faker.date.anytime(),
 	updatedAt: faker.date.recent(),
@@ -556,7 +547,7 @@ export const TEST_USER = {
 	id: "efaa20ea-4dc5-47ee-a200-8a899be29494",
 	username: "test",
 	password: "demo1234",
-	email: "test@workhub.com",
+	email: "test@fwts.com",
 	avatar: faker.image.avatarGitHub(),
 	createdAt: faker.date.anytime(),
 	updatedAt: faker.date.recent(),
