@@ -12,13 +12,13 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
+import { Icon } from "@/components/icon";
 import { LoginStateEnum, useLoginStateContext } from "./providers/login-provider";
 
 export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRef<"form">) {
 	const { t } = useTranslation();
 	const [loading, setLoading] = useState(false);
 	const [remember, setRemember] = useState(true);
-	const [formError, setFormError] = useState("");
 	const navigatge = useNavigate();
 
 	const { loginState, setLoginState } = useLoginStateContext();
@@ -35,7 +35,6 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
 	const handleFinish = async (values: SignInReq) => {
 		setLoading(true);
-		setFormError("");
 		try {
 			await signIn(values);
 			navigatge(GLOBAL_CONFIG.defaultRoute, { replace: true });
@@ -44,7 +43,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 			});
 		} catch (err: any) {
 			const message = err?.response?.data?.message || err?.message || t("sys.api.errorMessage");
-			setFormError(message);
+			form.setError("password", { type: "manual", message });
 		} finally {
 			setLoading(false);
 		}
@@ -115,9 +114,14 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 						{t("sys.login.loginButton")}
 					</Button>
 
-					{formError && <p className="text-sm text-red-500 text-center">{formError}</p>}
-
-					{/* Register link removed per requirements */}
+					<Button
+						variant="link"
+						className="w-full cursor-pointer text-accent-foreground"
+						onClick={() => setLoginState(LoginStateEnum.REGISTER)}
+					>
+						<span className="text-sm">{t("sys.login.signUp")}</span>
+						<Icon icon="solar:arrow-right-linear" size={20} />
+					</Button>
 				</form>
 			</Form>
 		</div>

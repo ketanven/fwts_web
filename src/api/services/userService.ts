@@ -16,26 +16,26 @@ export interface SignUpReq {
 }
 export type SignInRes = Partial<UserToken> & { user?: UserInfo } & Record<string, any>;
 
-export enum UserApi {
-	SignIn = USER_API.login,
-	SignUp = USER_API.register,
-	Logout = USER_API.logout,
-	Refresh = USER_API.refresh,
-	Profile = USER_API.profile,
-	ChangePassword = USER_API.changePassword,
-	ForgotPassword = USER_API.forgotPassword,
-	ResetPassword = USER_API.resetPassword,
-}
+export const UserApi = {
+	SignIn: USER_API.login,
+	SignUp: USER_API.register,
+	Logout: USER_API.logout,
+	Refresh: USER_API.refresh,
+	Profile: USER_API.profile,
+	ChangePassword: USER_API.changePassword,
+	ForgotPassword: USER_API.forgotPassword,
+	ResetPassword: USER_API.resetPassword,
+} as const;
 
 const signin = (data: SignInReq) =>
 	apiClient.post<SignInRes>({
 		url: UserApi.SignIn,
 		data,
-		headers: { "x-skip-error-toast": true },
-	});
+		skipErrorToast: true,
+	} as any);
 const signup = (data: SignUpReq) => apiClient.post<SignInRes>({ url: UserApi.SignUp, data });
 const logout = () => apiClient.get({ url: UserApi.Logout });
-const profile = () => apiClient.get<UserInfo>({ url: UserApi.Profile, headers: { "x-skip-error-toast": true } });
+const profile = () => apiClient.get<UserInfo>({ url: UserApi.Profile, skipErrorToast: true } as any);
 
 export default {
 	signin,

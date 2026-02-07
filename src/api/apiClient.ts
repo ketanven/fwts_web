@@ -31,29 +31,28 @@ axiosInstance.interceptors.response.use(
 	(res: AxiosResponse<Result<any> | any>) => {
 		if (!res.data) throw new Error(t("sys.api.apiRequestFailed"));
 
-		const isWrapped =
-			typeof res.data === "object" &&
-			res.data !== null &&
-			"status" in res.data &&
-			"data" in res.data;
-
-		if (!isWrapped) {
-			return res.data;
+		// Support both legacy { status, data, message } and raw REST responses
+		if (typeof res.data === "object" && res.data !== null && "status" in res.data) {
+			const { status, data, message } = res.data as Result<any>;
+			if (status === ResultStatus.SUCCESS || (status >= 200 && status < 300)) {
+				return data;
+			}
+			throw new Error(message || t("sys.api.apiRequestFailed"));
 		}
 
-		const { status, data, message } = res.data as Result<any>;
-		if (status === ResultStatus.SUCCESS) {
-			return data;
-		}
-		throw new Error(message || t("sys.api.apiRequestFailed"));
+		return res.data;
 	},
 	(error: AxiosError<Result | any>) => {
-		const { response, message } = error || {};
-		const shouldSkipToast = (error.config?.headers as Record<string, any>)?.["x-skip-error-toast"];
+		const { response, message, config } = error || {};
 		const errMsg = response?.data?.message || message || t("sys.api.errorMessage");
-		if (!shouldSkipToast) {
+		
+		// Check if this request should skip error toast
+		const skipErrorToast = (config as any)?.skipErrorToast || (config?.headers as Record<string, any>)?.["x-skip-error-toast"];
+		
+		if (!skipErrorToast && response?.status !== 400) {
 			toast.error(errMsg, { position: "top-center" });
 		}
+		
 		if (response?.status === 401) {
 			userStore.getState().actions.clearUserInfoAndToken();
 		}

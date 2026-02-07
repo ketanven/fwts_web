@@ -10,6 +10,8 @@ export interface UserInfo {
 	id: string;
 	email: string;
 	username: string;
+	first_name?: string;
+	last_name?: string;
 	password?: string;
 	avatar?: string;
 	roles?: Role[];
@@ -71,6 +73,31 @@ export interface Permission extends CommonOptions {
 	id: string; // uuid
 	name: string;
 	code: string; // resource:action  example: "user-management:read"
+}
+
+export interface Client {
+	id: string;
+	name: string;
+	company_name?: string;
+	email: string;
+	phone?: string;
+	address_line1?: string;
+	address_line2?: string;
+	city?: string;
+	state?: string;
+	postal_code?: string;
+	country?: string;
+	tax_id?: string;
+	currency?: string;
+	hourly_rate?: number | null;
+	payment_terms_days?: number | null;
+	trust_score?: number | null;
+	notes?: string;
+	metadata?: Record<string, any> | null;
+	is_active?: boolean;
+	archived_at?: string | null;
+	created_at?: string;
+	updated_at?: string;
 }
 
 export interface Menu extends CommonOptions, MenuMetaInfo {

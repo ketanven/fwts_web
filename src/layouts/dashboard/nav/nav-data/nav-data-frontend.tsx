@@ -28,36 +28,16 @@ export const frontendNavData: NavProps["data"] = [
 				icon: <Icon icon="local:ic-management" size="24" />,
 				children: [
 					{
+						title: "sys.nav.client",
+						path: "/management/client",
+					},
+					{
 						title: "sys.nav.user.index",
 						path: "/management/user",
-						children: [
-							{
-								title: "sys.nav.user.profile",
-								path: "/management/user/profile",
-							},
-							{
-								title: "sys.nav.user.account",
-								path: "/management/user/account",
-							},
-						],
 					},
 					{
 						title: "sys.nav.system.index",
 						path: "/management/system",
-						children: [
-							{
-								title: "sys.nav.system.permission",
-								path: "/management/system/permission",
-							},
-							{
-								title: "sys.nav.system.role",
-								path: "/management/system/role",
-							},
-							{
-								title: "sys.nav.system.user",
-								path: "/management/system/user",
-							},
-						],
 					},
 				],
 			},

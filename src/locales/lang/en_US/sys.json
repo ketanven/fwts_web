@@ -65,6 +65,7 @@
 			"signInPrimaryTitle": "Hi, Welcome Back",
 			"signInSecondTitle": "Backstage management system",
 			"signInTitle": "",
+			"signUp": "Sign up",
 			"signUpFormTitle": "Sign up",
 			"smsCode": "SMS code",
 			"smsPlaceholder": "Please input sms code",
@@ -106,6 +107,7 @@
 			"permission": "Permission",
 			"permission.page_test": "Page Permission Test",
 			"management": "Management",
+			"client": "Client",
 			"markdown": "Markdown",
 			"menulevel": {
 				"1a": "Menu Level 1a",

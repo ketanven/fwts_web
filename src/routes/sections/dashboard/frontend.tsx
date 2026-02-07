@@ -23,6 +23,15 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 			children: [
 				{ index: true, element: <Navigate to="user" replace /> },
 				{
+					path: "client",
+					children: [
+						{ index: true, element: Component("/pages/management/client") },
+						{ path: "new", element: Component("/pages/management/client/create") },
+						{ path: ":id", element: Component("/pages/management/client/detail") },
+						{ path: ":id/edit", element: Component("/pages/management/client/edit") },
+					],
+				},
+				{
 					path: "user",
 					children: [
 						{ index: true, element: <Navigate to="profile" replace /> },

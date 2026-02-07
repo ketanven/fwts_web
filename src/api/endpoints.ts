@@ -8,3 +8,8 @@ export const USER_API = {
 	logout: "/logout/",
 	refresh: "/refresh/",
 };
+
+export const CLIENT_API = {
+	list: "/clients/",
+	detail: (clientId: string) => `/clients/${clientId}/`,
+};
