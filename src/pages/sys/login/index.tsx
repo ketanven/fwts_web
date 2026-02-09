@@ -1,4 +1,3 @@
-import PlaceholderImg from "@/assets/images/background/placeholder.svg";
 import Logo from "@/components/logo";
 import { GLOBAL_CONFIG } from "@/global-config";
 import SettingButton from "@/layouts/components/setting-button";
@@ -19,7 +18,7 @@ function LoginPage() {
 	}
 
 	return (
-		<div className="relative grid min-h-svh lg:grid-cols-2 bg-background">
+		<div className="group relative grid min-h-svh lg:grid-cols-2 bg-background">
 			<div className="flex flex-col gap-4 p-6 md:p-10">
 				<div className="flex justify-center gap-2 md:justify-start">
 					<div className="flex items-center gap-2 font-medium cursor-pointer">
@@ -41,10 +40,11 @@ function LoginPage() {
 			</div>
 
 			<div className="relative hidden bg-background-paper lg:block">
-				<img src={PlaceholderImg} alt="placeholder img" className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.5] dark:grayscale" />
+				<img src="/freelancer.jpg" alt="freelancer" className="absolute inset-0 h-full w-full object-cover object-center" />
+				<div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/30 to-transparent" />
 			</div>
 
-			<div className="absolute right-2 top-0 flex flex-row">
+			<div className="absolute right-2 top-0 flex flex-row opacity-0 transition-opacity duration-200 group-hover:opacity-100">
 				<SettingButton />
 			</div>
 		</div>

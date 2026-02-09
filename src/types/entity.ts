@@ -100,6 +100,30 @@ export interface Client {
 	updated_at?: string;
 }
 
+export interface Project {
+	id: string;
+	client: string;
+	client_name?: string;
+	name: string;
+	description?: string;
+	status?: string;
+	priority?: string;
+	billing_type?: string;
+	hourly_rate?: number | null;
+	fixed_price?: number | null;
+	currency?: string;
+	estimated_hours?: number | null;
+	progress_percent?: number | null;
+	start_date?: string | null;
+	due_date?: string | null;
+	notes?: string;
+	metadata?: Record<string, any> | null;
+	is_active?: boolean;
+	archived_at?: string | null;
+	created_at?: string;
+	updated_at?: string;
+}
+
 export interface Menu extends CommonOptions, MenuMetaInfo {
 	id: string; // uuid
 	parentId: string;

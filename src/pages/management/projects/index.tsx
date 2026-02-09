@@ -3,7 +3,7 @@ import type { ColumnsType } from "antd/es/table";
 import { Table } from "antd";
 import { toast } from "sonner";
 
-import clientService from "@/api/services/clientService";
+import projectService from "@/api/services/projectService";
 import { Icon } from "@/components/icon";
 import { usePathname, useRouter } from "@/routes/hooks";
 import { Badge } from "@/ui/badge";
@@ -11,7 +11,7 @@ import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader } from "@/ui/card";
 import ConfirmDialog from "@/components/common/confirm-dialog";
 
-import type { Client } from "#/entity";
+import type { Project } from "#/entity";
 
 const formatDate = (value?: string | null) => {
 	if (!value) return "-";
@@ -20,40 +20,46 @@ const formatDate = (value?: string | null) => {
 	return parsed.toLocaleDateString();
 };
 
-export default function ClientPage() {
+const formatCurrency = (value?: number | null, currency?: string) => {
+	if (value === null || value === undefined) return "-";
+	if (!currency) return String(value);
+	return `${currency.toUpperCase()} ${value}`;
+};
+
+export default function ProjectPage() {
 	const { push } = useRouter();
 	const pathname = usePathname();
-	const [clients, setClients] = useState<Client[]>([]);
+	const [projects, setProjects] = useState<Project[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [deleting, setDeleting] = useState(false);
 	const [confirmOpen, setConfirmOpen] = useState(false);
-	const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+	const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
-	const fetchClients = async () => {
+	const fetchProjects = async () => {
 		setLoading(true);
 		try {
-			const data = await clientService.listClients();
-			setClients(data ?? []);
+			const data = await projectService.listProjects();
+			setProjects(data ?? []);
 		} catch {
-			setClients([]);
+			setProjects([]);
 		} finally {
 			setLoading(false);
 		}
 	};
 
 	useEffect(() => {
-		fetchClients();
+		fetchProjects();
 	}, []);
 
 	const handleDelete = async () => {
-		if (!selectedClient) return;
+		if (!selectedProject) return;
 		try {
 			setDeleting(true);
-			await clientService.deleteClient(selectedClient.id);
-			toast.success("Client deleted successfully.");
-			fetchClients();
+			await projectService.deleteProject(selectedProject.id);
+			toast.success("Project deleted successfully.");
+			fetchProjects();
 			setConfirmOpen(false);
-			setSelectedClient(null);
+			setSelectedProject(null);
 		} catch (error: any) {
 			const message = error?.response?.data?.message || error?.response?.data?.detail || error?.message || "Delete failed.";
 			toast.error(message);
@@ -62,55 +68,71 @@ export default function ClientPage() {
 		}
 	};
 
-	const columns: ColumnsType<Client> = useMemo(
+	const columns: ColumnsType<Project> = useMemo(
 		() => [
 			{
-				title: "Client",
+				title: "Project",
 				dataIndex: "name",
 				width: 260,
 				render: (_, record) => (
 					<div className="flex flex-col">
 						<span className="text-sm font-medium">{record.name}</span>
-						<span className="text-xs text-text-secondary">{record.email}</span>
+						<span className="text-xs text-text-secondary">{record.client_name || record.client}</span>
 					</div>
 				),
 			},
 			{
-				title: "Company",
-				dataIndex: "company_name",
-				width: 180,
-				render: (value) => value || "-",
-			},
-			{
-				title: "Phone",
-				dataIndex: "phone",
+				title: "Status",
+				dataIndex: "status",
 				width: 140,
 				render: (value) => value || "-",
 			},
 			{
-				title: "Currency",
-				dataIndex: "currency",
-				width: 100,
+				title: "Priority",
+				dataIndex: "priority",
+				width: 120,
 				render: (value) => value || "-",
 			},
 			{
-				title: "Hourly Rate",
-				dataIndex: "hourly_rate",
-				width: 120,
-				render: (value) => (value !== null && value !== undefined ? value : "-"),
+				title: "Billing",
+				dataIndex: "billing_type",
+				width: 140,
+				render: (value) => value || "-",
 			},
 			{
-				title: "Status",
+				title: "Budget",
+				key: "budget",
+				width: 160,
+				render: (_, record) =>
+					record.billing_type === "hourly"
+						? formatCurrency(record.hourly_rate, record.currency)
+						: record.billing_type === "fixed"
+							? formatCurrency(record.fixed_price, record.currency)
+							: "-",
+			},
+			{
+				title: "Progress",
+				dataIndex: "progress_percent",
+				width: 120,
+				render: (value) => (value !== null && value !== undefined ? `${value}%` : "-"),
+			},
+			{
+				title: "Dates",
+				key: "dates",
+				width: 180,
+				render: (_, record) => (
+					<div className="flex flex-col text-xs">
+						<span>Start: {formatDate(record.start_date)}</span>
+						<span>Due: {formatDate(record.due_date)}</span>
+					</div>
+				),
+			},
+			{
+				title: "Active",
 				dataIndex: "is_active",
 				align: "center",
 				width: 120,
 				render: (value) => <Badge variant={value === false ? "error" : "success"}>{value === false ? "Inactive" : "Active"}</Badge>,
-			},
-			{
-				title: "Updated",
-				dataIndex: "updated_at",
-				width: 140,
-				render: (value) => formatDate(value),
 			},
 			{
 				title: "Action",
@@ -129,7 +151,7 @@ export default function ClientPage() {
 							variant="ghost"
 							size="icon"
 							onClick={() => {
-								setSelectedClient(record);
+								setSelectedProject(record);
 								setConfirmOpen(true);
 							}}
 						>
@@ -146,7 +168,7 @@ export default function ClientPage() {
 		<Card>
 			<ConfirmDialog
 				open={confirmOpen}
-				title={`Delete ${selectedClient?.name ?? "client"}?`}
+				title={`Delete ${selectedProject?.name ?? "project"}?`}
 				description="This action cannot be undone."
 				confirmText="Yes, delete"
 				cancelText="No"
@@ -156,12 +178,12 @@ export default function ClientPage() {
 				onCancel={() => {
 					if (deleting) return;
 					setConfirmOpen(false);
-					setSelectedClient(null);
+					setSelectedProject(null);
 				}}
 			/>
 			<CardHeader>
 				<div className="flex items-center justify-between">
-					<div>Client List</div>
+					<div>Project List</div>
 					<Button onClick={() => push(`${pathname}/new`)}>New</Button>
 				</div>
 			</CardHeader>
@@ -172,7 +194,7 @@ export default function ClientPage() {
 					scroll={{ x: "max-content" }}
 					pagination={false}
 					columns={columns}
-					dataSource={clients}
+					dataSource={projects}
 					loading={loading}
 				/>
 			</CardContent>

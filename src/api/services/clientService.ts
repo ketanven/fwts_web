@@ -66,7 +66,7 @@ const createClient = (data: ClientCreateReq) =>
 	});
 
 const updateClient = (clientId: string, data: ClientUpdateReq) =>
-	apiClient.put<Client>({
+	apiClient.patch<Client>({
 		url: CLIENT_API.detail(clientId),
 		data,
 		headers: { "x-skip-error-toast": true, ...getAuthHeaders() },

@@ -34,7 +34,7 @@ function RegisterForm() {
 			navigate("/", { replace: true });
 			return;
 		}
-		navigate("/auth/login", { replace: true });
+		navigate("/login", { replace: true });
 	};
 
 	if (loginState !== LoginStateEnum.REGISTER) return null;
@@ -136,8 +136,8 @@ function RegisterForm() {
 
 				<ReturnButton
 					onClick={() => {
-						if (location.pathname === "/auth/register") {
-							navigate("/auth/login");
+						if (location.pathname === "/register") {
+							navigate("/login");
 							return;
 						}
 						backToLogin();

@@ -32,6 +32,15 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 					],
 				},
 				{
+					path: "projects",
+					children: [
+						{ index: true, element: Component("/pages/management/projects") },
+						{ path: "new", element: Component("/pages/management/projects/create") },
+						{ path: ":id", element: Component("/pages/management/projects/detail") },
+						{ path: ":id/edit", element: Component("/pages/management/projects/edit") },
+					],
+				},
+				{
 					path: "user",
 					children: [
 						{ index: true, element: <Navigate to="profile" replace /> },

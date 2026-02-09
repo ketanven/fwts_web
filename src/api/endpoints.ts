@@ -13,3 +13,8 @@ export const CLIENT_API = {
 	list: "/clients/",
 	detail: (clientId: string) => `/clients/${clientId}/`,
 };
+
+export const PROJECT_API = {
+	list: "/projects/",
+	detail: (projectId: string) => `/projects/${projectId}/`,
+};

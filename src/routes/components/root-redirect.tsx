@@ -9,5 +9,5 @@ export default function RootRedirect() {
 		return <Navigate to={GLOBAL_CONFIG.defaultRoute} replace />;
 	}
 
-	return <Navigate to="/auth/register" replace />;
+	return <Navigate to="/register" replace />;
 }

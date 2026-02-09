@@ -17,7 +17,6 @@ const authCustom: RouteObject[] = [
 
 export const authRoutes: RouteObject[] = [
 	{
-		path: "auth",
 		element: <AuthRouteGuard />,
 		children: [...authCustom],
 	},

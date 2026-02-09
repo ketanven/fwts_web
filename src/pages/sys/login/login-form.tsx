@@ -103,7 +103,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 								{t("sys.login.rememberMe")}
 							</label>
 						</div>
-						<Button variant="link" onClick={() => setLoginState(LoginStateEnum.RESET_PASSWORD)} size="sm">
+						<Button type="button" variant="link" onClick={() => setLoginState(LoginStateEnum.RESET_PASSWORD)} size="sm">
 							{t("sys.login.forgetPassword")}
 						</Button>
 					</div>
@@ -115,6 +115,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 					</Button>
 
 					<Button
+						type="button"
 						variant="link"
 						className="w-full cursor-pointer text-accent-foreground"
 						onClick={() => setLoginState(LoginStateEnum.REGISTER)}
