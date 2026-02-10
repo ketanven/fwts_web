@@ -36,6 +36,10 @@ export const frontendNavData: NavProps["data"] = [
 						path: "/management/projects",
 					},
 					{
+						title: "sys.nav.tasks",
+						path: "/management/tasks",
+					},
+					{
 						title: "sys.nav.user.index",
 						path: "/management/user",
 					},

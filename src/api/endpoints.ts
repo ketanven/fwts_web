@@ -18,3 +18,8 @@ export const PROJECT_API = {
 	list: "/projects/",
 	detail: (projectId: string) => `/projects/${projectId}/`,
 };
+
+export const TASK_API = {
+	list: "/tasks/",
+	detail: (taskId: string) => `/tasks/${taskId}/`,
+};

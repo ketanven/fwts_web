@@ -41,6 +41,15 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 					],
 				},
 				{
+					path: "tasks",
+					children: [
+						{ index: true, element: Component("/pages/management/tasks") },
+						{ path: "new", element: Component("/pages/management/tasks/create") },
+						{ path: ":id", element: Component("/pages/management/tasks/detail") },
+						{ path: ":id/edit", element: Component("/pages/management/tasks/edit") },
+					],
+				},
+				{
 					path: "user",
 					children: [
 						{ index: true, element: <Navigate to="profile" replace /> },

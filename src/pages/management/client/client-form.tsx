@@ -30,7 +30,6 @@ export type ClientFormValues = {
 	payment_terms_days: string;
 	trust_score: string;
 	notes: string;
-	metadata: string;
 	is_active: boolean;
 };
 
@@ -60,7 +59,6 @@ const buildFormValues = (client?: Client | null): ClientFormValues => ({
 		client?.payment_terms_days !== null && client?.payment_terms_days !== undefined ? String(client.payment_terms_days) : "",
 	trust_score: client?.trust_score !== null && client?.trust_score !== undefined ? String(client.trust_score) : "",
 	notes: client?.notes ?? "",
-	metadata: client?.metadata ? JSON.stringify(client.metadata, null, 2) : "",
 	is_active: client?.is_active ?? true,
 });
 
@@ -85,7 +83,6 @@ const buildPayload = (values: ClientFormValues, mode: ClientFormMode): ClientCre
 		payment_terms_days: toOptionalInteger(values.payment_terms_days),
 		trust_score: toOptionalNumber(values.trust_score),
 		notes: values.notes.trim() || "",
-		metadata: values.metadata.trim() ? JSON.parse(values.metadata) : null,
 	};
 
 	if (mode === "edit") {
@@ -386,32 +383,6 @@ export function ClientForm({ mode, initialValues, onSave, onSuccess, submitLabel
 							<FormControl>
 								<Textarea rows={4} {...field} />
 							</FormControl>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-
-				<FormField
-					control={form.control}
-					name="metadata"
-					rules={{
-						validate: (value) => {
-							if (value.trim() === "") return true;
-							try {
-								JSON.parse(value);
-								return true;
-							} catch {
-								return "Metadata must be valid JSON.";
-							}
-						},
-					}}
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Metadata (JSON)</FormLabel>
-							<FormControl>
-								<Textarea rows={5} placeholder='{"segment":"enterprise"}' {...field} />
-							</FormControl>
-							<FormDescription>Optional structured data stored with the client.</FormDescription>
 							<FormMessage />
 						</FormItem>
 					)}

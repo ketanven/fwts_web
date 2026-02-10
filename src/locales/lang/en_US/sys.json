@@ -109,6 +109,7 @@
 			"management": "Management",
 			"client": "Client",
 			"projects": "Projects",
+			"tasks": "Tasks",
 			"markdown": "Markdown",
 			"menulevel": {
 				"1a": "Menu Level 1a",

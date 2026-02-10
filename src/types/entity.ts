@@ -124,6 +124,30 @@ export interface Project {
 	updated_at?: string;
 }
 
+export interface Task {
+	id: string;
+	project: string;
+	project_name?: string;
+	title: string;
+	description?: string;
+	status?: string;
+	priority?: string;
+	estimated_hours?: number | null;
+	actual_hours?: number | null;
+	progress_percent?: number | null;
+	start_date?: string | null;
+	due_date?: string | null;
+	completed_at?: string | null;
+	billable?: boolean;
+	hourly_rate?: number | null;
+	notes?: string;
+	metadata?: Record<string, any> | null;
+	is_active?: boolean;
+	archived_at?: string | null;
+	created_at?: string;
+	updated_at?: string;
+}
+
 export interface Menu extends CommonOptions, MenuMetaInfo {
 	id: string; // uuid
 	parentId: string;
