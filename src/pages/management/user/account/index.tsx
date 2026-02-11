@@ -1,7 +1,7 @@
 import { Icon } from "@/components/icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import GeneralTab from "./general-tab";
-import NotificationsTab from "./notifications-tab";
+// import NotificationsTab from "./notifications-tab";
 import SecurityTab from "./security-tab";
 
 function UserAccount() {
@@ -14,12 +14,12 @@ function UserAccount() {
 						<span>General</span>
 					</div>
 				</TabsTrigger>
-				<TabsTrigger value="2">
+				{/* <TabsTrigger value="2">
 					<div className="flex items-center">
 						<Icon icon="solar:bell-bing-bold-duotone" size={24} className="mr-2" />
 						<span>Notifications</span>
 					</div>
-				</TabsTrigger>
+				</TabsTrigger> */}
 				<TabsTrigger value="3">
 					<div className="flex items-center">
 						<Icon icon="solar:key-minimalistic-square-3-bold-duotone" size={24} className="mr-2" />
@@ -30,9 +30,9 @@ function UserAccount() {
 			<TabsContent value="1">
 				<GeneralTab />
 			</TabsContent>
-			<TabsContent value="2">
+			{/* <TabsContent value="2">
 				<NotificationsTab />
-			</TabsContent>
+			</TabsContent> */}
 			<TabsContent value="3">
 				<SecurityTab />
 			</TabsContent>

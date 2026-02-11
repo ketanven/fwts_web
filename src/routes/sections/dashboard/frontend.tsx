@@ -7,6 +7,17 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 		{ path: "workbench", element: Component("/pages/dashboard/workbench") },
 		{ path: "analysis", element: Component("/pages/dashboard/analysis") },
 		{
+			path: "operations",
+			children: [
+				{ index: true, element: <Navigate to="invoicing" replace /> },
+				{ path: "invoicing", element: Component("/pages/operations/invoicing") },
+				{ path: "reporting", element: Component("/pages/operations/reporting") },
+				{ path: "invoice-control", element: Component("/pages/operations/invoice-control") },
+				{ path: "productivity", element: Component("/pages/operations/productivity") },
+				{ path: "client-trust", element: Component("/pages/operations/client-trust") },
+			],
+		},
+		{
 			path: "components",
 			children: [
 				{ index: true, element: <Navigate to="animate" replace /> },

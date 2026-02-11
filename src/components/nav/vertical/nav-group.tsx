@@ -9,6 +9,16 @@ import { NavList } from "./nav-list";
 export function NavGroup({ name, items }: NavGroupProps) {
 	const [open, toggleOpen] = useToggle(true);
 
+	if (!name) {
+		return (
+			<ul className="flex w-full flex-col gap-1">
+				{items.map((item, index) => (
+					<NavList key={item.title || index} data={item} depth={1} />
+				))}
+			</ul>
+		);
+	}
+
 	return (
 		<Collapsible open={open}>
 			<CollapsibleTrigger asChild>

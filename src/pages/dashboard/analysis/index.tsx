@@ -1,22 +1,20 @@
 import { Chart } from "@/components/chart/chart";
 import { useChart } from "@/components/chart/useChart";
 import Icon from "@/components/icon/icon";
-import { Button } from "@/ui/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/ui/card";
+import { Badge } from "@/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { Progress } from "@/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Text, Title } from "@/ui/typography";
 import { cn } from "@/utils";
 import { useState } from "react";
 
-// ---------------------- 数据区 ----------------------
 const timeOptions = [
 	{ label: "Day", value: "day" },
 	{ label: "Week", value: "week" },
 	{ label: "Month", value: "month" },
 ];
 
-// 所有数据都按 day/week/month 维度组织
 const dashboardData = {
 	webAnalytic: {
 		day: {
@@ -62,110 +60,88 @@ const dashboardData = {
 			},
 		},
 	},
-	visitor: {
-		day: { value: 149328, change: 5.2, tip: "vs last day" },
-		week: { value: 749853, change: 8.4, tip: "vs last week" },
-		month: { value: 1749853, change: 12.4, tip: "vs last year" },
-	},
-	conversionRate: {
-		day: { value: 6.8, change: -1.8, tip: "vs last day" },
-		week: { value: 7.0, change: 0.2, tip: "vs last week" },
-		month: { value: 7.2, change: 0.8, tip: "vs last year" },
-	},
-	adCampaign: {
-		day: { value: 17333, change: 2.3, tip: "vs last day" },
-		week: { value: 114987, change: 6.1, tip: "vs last week" },
-		month: { value: 214987, change: 15.6, tip: "vs last year" },
-	},
-	topPages: {
-		day: [
-			{ url: "/dashboard", views: 6485, viewsChange: 1.7, unique: 1078, uniqueChange: 1.2 },
-			{ url: "/affiliate", views: 3687, viewsChange: 1.4, unique: 801, uniqueChange: 0.9 },
-			{ url: "/contract", views: 2918, viewsChange: 2.6, unique: 655, uniqueChange: 1.4 },
-			{ url: "/products", views: 4882, viewsChange: -0.7, unique: 936, uniqueChange: -0.3 },
-			{ url: "/sign-in", views: 1527, viewsChange: 1.1, unique: 389, uniqueChange: 0.8 },
-			{ url: "/about", views: 2103, viewsChange: -0.3, unique: 450, uniqueChange: -1.5 },
-		],
-		week: [
-			{ url: "/dashboard", views: 36485, viewsChange: 2.7, unique: 11078, uniqueChange: 2.2 },
-			{ url: "/affiliate", views: 23687, viewsChange: 1.9, unique: 9801, uniqueChange: 1.5 },
-			{ url: "/contract", views: 12918, viewsChange: 3.1, unique: 7655, uniqueChange: 2.1 },
-			{ url: "/products", views: 14882, viewsChange: -0.2, unique: 9936, uniqueChange: 0.1 },
-			{ url: "/sign-in", views: 11527, viewsChange: 1.5, unique: 4389, uniqueChange: 1.2 },
-			{ url: "/about", views: 12103, viewsChange: 0.3, unique: 5450, uniqueChange: -0.5 },
-		],
-		month: [
-			{ url: "/dashboard", views: 76485, viewsChange: 4.7, unique: 21078, uniqueChange: 3.2 },
-			{ url: "/affiliate", views: 43687, viewsChange: 2.4, unique: 18001, uniqueChange: 1.9 },
-			{ url: "/contract", views: 22918, viewsChange: 4.6, unique: 16555, uniqueChange: 2.4 },
-			{ url: "/products", views: 24882, viewsChange: 0.7, unique: 19360, uniqueChange: 0.3 },
-			{ url: "/sign-in", views: 21527, viewsChange: 2.1, unique: 8389, uniqueChange: 1.8 },
-			{ url: "/about", views: 22103, viewsChange: 0.8, unique: 9450, uniqueChange: -1.2 },
-		],
-	},
-	sessionDevices: {
-		day: [
-			{ label: "Desktop", value: 42.1, color: "#3b82f6", icon: "mdi:desktop-mac" },
-			{ label: "Mobile", value: 33.7, color: "#f59e42", icon: "mdi:cellphone" },
-			{ label: "Tablet", value: 19.6, color: "#6366f1", icon: "mdi:tablet" },
-		],
-		week: [
-			{ label: "Desktop", value: 42.1, color: "#3b82f6", icon: "mdi:desktop-mac" },
-			{ label: "Mobile", value: 33.7, color: "#f59e42", icon: "mdi:cellphone" },
-			{ label: "Tablet", value: 19.6, color: "#6366f1", icon: "mdi:tablet" },
-		],
-		month: [
-			{ label: "Desktop", value: 42.1, color: "#3b82f6", icon: "mdi:desktop-mac" },
-			{ label: "Mobile", value: 33.7, color: "#f59e42", icon: "mdi:cellphone" },
-			{ label: "Tablet", value: 19.6, color: "#6366f1", icon: "mdi:tablet" },
-		],
-	},
-	topChannels: {
-		day: [
-			{ name: "Google", percent: 40, total: 31731, icon: "logos:google-icon" },
-			{ name: "Instagram", percent: 30, total: 23798, icon: "skill-icons:instagram" },
-			{ name: "Facebook", percent: 15, total: 11889, icon: "logos:facebook" },
-			{ name: "X", percent: 13, total: 10318, icon: "ri:twitter-x-fill" },
-		],
-		week: [
-			{ name: "Google", percent: 38, total: 61731, icon: "logos:google-icon" },
-			{ name: "Instagram", percent: 32, total: 43798, icon: "skill-icons:instagram" },
-			{ name: "Facebook", percent: 17, total: 21889, icon: "logos:facebook" },
-			{ name: "X", percent: 11, total: 20318, icon: "ri:twitter-x-fill" },
-		],
-		month: [
-			{ name: "Google", percent: 41, total: 131731, icon: "logos:google-icon" },
-			{ name: "Instagram", percent: 29, total: 123798, icon: "skill-icons:instagram" },
-			{ name: "Facebook", percent: 16, total: 61189, icon: "logos:facebook" },
-			{ name: "X", percent: 12, total: 40318, icon: "ri:twitter-x-fill" },
-		],
-	},
-	trafficData: {
-		day: [
-			{ source: "Direct", visits: 1500, unique: 1200, bounce: 40, duration: "00:03:45", progress: 60 },
-			{ source: "Natural", visits: 3000, unique: 2500, bounce: 35, duration: "00:04:20", progress: 75 },
-			{ source: "Referral", visits: 1000, unique: 850, bounce: 45, duration: "00:03:10", progress: 80 },
-			{ source: "Social Media", visits: 2000, unique: 1800, bounce: 50, duration: "00:02:50", progress: 40 },
-			{ source: "Email Campaign", visits: 800, unique: 700, bounce: 30, duration: "00:05:00", progress: 55 },
-		],
-		week: [
-			{ source: "Direct", visits: 11500, unique: 11200, bounce: 38, duration: "00:03:35", progress: 62 },
-			{ source: "Natural", visits: 23000, unique: 22500, bounce: 33, duration: "00:04:10", progress: 78 },
-			{ source: "Referral", visits: 11000, unique: 9850, bounce: 43, duration: "00:03:00", progress: 82 },
-			{ source: "Social Media", visits: 12000, unique: 11800, bounce: 48, duration: "00:02:40", progress: 45 },
-			{ source: "Email Campaign", visits: 3800, unique: 3700, bounce: 28, duration: "00:05:10", progress: 59 },
-		],
-		month: [
-			{ source: "Direct", visits: 31500, unique: 31200, bounce: 36, duration: "00:03:25", progress: 65 },
-			{ source: "Natural", visits: 53000, unique: 52500, bounce: 31, duration: "00:04:00", progress: 80 },
-			{ source: "Referral", visits: 21000, unique: 19850, bounce: 41, duration: "00:02:50", progress: 85 },
-			{ source: "Social Media", visits: 22000, unique: 21800, bounce: 46, duration: "00:02:30", progress: 50 },
-			{ source: "Email Campaign", visits: 7800, unique: 7700, bounce: 26, duration: "00:05:20", progress: 63 },
-		],
+	freelancer: {
+		day: {
+			billableHours: { value: 7.6, change: 6.1, target: 95 },
+			earnings: { value: 540, change: 4.7 },
+			utilization: { value: 83, change: 2.4 },
+			productivity: { value: 86, change: 5.2 },
+			invoiceHealth: { paid: 4, pending: 2, overdue: 1 },
+			onTimeRate: { value: 78, change: 1.6 },
+			earningsTrend: [420, 380, 520, 490, 610, 540, 560],
+			allocation: [
+				{ label: "Client Work", value: 62, color: "#22c55e" },
+				{ label: "Meetings", value: 14, color: "#f59e0b" },
+				{ label: "Admin", value: 12, color: "#6366f1" },
+				{ label: "Learning", value: 12, color: "#ec4899" },
+			],
+			topClients: [
+				{ name: "Northstar Studio", revenue: 1200, hours: 15.2, trust: "Trusted" },
+				{ name: "Orbit Labs", revenue: 980, hours: 13.4, trust: "Watch" },
+				{ name: "Metrica", revenue: 770, hours: 10.1, trust: "Trusted" },
+			],
+			taskAccuracy: [
+				{ task: "Homepage Wireframes", estimated: 8, actual: 7.2, status: "On Time" },
+				{ task: "Payment Integration", estimated: 14, actual: 15.4, status: "Delayed" },
+				{ task: "Client Handoff Pack", estimated: 6, actual: 5.4, status: "On Time" },
+				{ task: "Regression QA", estimated: 5, actual: 4.8, status: "On Time" },
+			],
+		},
+		week: {
+			billableHours: { value: 38.4, change: 8.2, target: 88 },
+			earnings: { value: 3140, change: 11.6 },
+			utilization: { value: 79, change: 3.1 },
+			productivity: { value: 82, change: 4.3 },
+			invoiceHealth: { paid: 9, pending: 5, overdue: 2 },
+			onTimeRate: { value: 74, change: -1.2 },
+			earningsTrend: [2620, 2840, 2980, 3050, 3190, 3140, 3260],
+			allocation: [
+				{ label: "Client Work", value: 58, color: "#22c55e" },
+				{ label: "Meetings", value: 17, color: "#f59e0b" },
+				{ label: "Admin", value: 13, color: "#6366f1" },
+				{ label: "Learning", value: 12, color: "#ec4899" },
+			],
+			topClients: [
+				{ name: "Northstar Studio", revenue: 4200, hours: 52.2, trust: "Trusted" },
+				{ name: "Orbit Labs", revenue: 3680, hours: 47.7, trust: "Moderate" },
+				{ name: "Flowbase", revenue: 2190, hours: 29.4, trust: "Risk" },
+			],
+			taskAccuracy: [
+				{ task: "Homepage Wireframes", estimated: 8, actual: 7.6, status: "On Time" },
+				{ task: "Payment Integration", estimated: 14, actual: 15.8, status: "Delayed" },
+				{ task: "Client Handoff Pack", estimated: 6, actual: 6.2, status: "On Time" },
+				{ task: "Regression QA", estimated: 5, actual: 5.5, status: "Delayed" },
+			],
+		},
+		month: {
+			billableHours: { value: 154.6, change: 12.4, target: 91 },
+			earnings: { value: 12480, change: 14.8 },
+			utilization: { value: 81, change: 4.8 },
+			productivity: { value: 84, change: 6.2 },
+			invoiceHealth: { paid: 21, pending: 8, overdue: 3 },
+			onTimeRate: { value: 76, change: 2.1 },
+			earningsTrend: [8450, 9030, 9640, 10120, 10880, 11640, 12480],
+			allocation: [
+				{ label: "Client Work", value: 61, color: "#22c55e" },
+				{ label: "Meetings", value: 16, color: "#f59e0b" },
+				{ label: "Admin", value: 13, color: "#6366f1" },
+				{ label: "Learning", value: 10, color: "#ec4899" },
+			],
+			topClients: [
+				{ name: "Northstar Studio", revenue: 16200, hours: 204.2, trust: "Trusted" },
+				{ name: "Orbit Labs", revenue: 13840, hours: 177.3, trust: "Moderate" },
+				{ name: "Metrica", revenue: 10450, hours: 139.1, trust: "Trusted" },
+			],
+			taskAccuracy: [
+				{ task: "Homepage Wireframes", estimated: 32, actual: 29.3, status: "On Time" },
+				{ task: "Payment Integration", estimated: 56, actual: 61.2, status: "Delayed" },
+				{ task: "Client Handoff Pack", estimated: 24, actual: 22.8, status: "On Time" },
+				{ task: "Regression QA", estimated: 20, actual: 21.1, status: "On Time" },
+			],
+		},
 	},
 };
 
-// ---------------------- 组件区 ----------------------
 function Trend({ value }: { value: number }) {
 	const trendClass = value > 0 ? "text-success" : value < 0 ? "text-error" : "text-muted-foreground";
 	return (
@@ -183,55 +159,58 @@ function Trend({ value }: { value: number }) {
 export default function Analysis() {
 	const [timeType, setTimeType] = useState<"day" | "week" | "month">("day");
 	const webAnalytic = dashboardData.webAnalytic[timeType];
-	const visitor = dashboardData.visitor[timeType];
-	const conversionRate = dashboardData.conversionRate[timeType];
-	const adCampaign = dashboardData.adCampaign[timeType];
-	const topPages = dashboardData.topPages[timeType];
-	const sessionDevices = dashboardData.sessionDevices[timeType];
-	const topChannels = dashboardData.topChannels[timeType];
-	const trafficData = dashboardData.trafficData[timeType];
+	const freelancer = dashboardData.freelancer[timeType];
 
-	const chartOptions = useChart({
+	const webChartOptions = useChart({
 		xaxis: { categories: webAnalytic.chart.categories },
 	});
 
-	const deviceChartOptions = useChart({
-		labels: sessionDevices.map((d) => d.label),
-		stroke: {
-			show: false,
-		},
-		legend: {
-			show: false,
-		},
-		tooltip: {
-			fillSeriesColor: false,
-		},
+	const earningsChartOptions = useChart({
+		xaxis: { categories: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+		chart: { toolbar: { show: false } },
+		stroke: { curve: "smooth", width: 3 },
+		dataLabels: { enabled: false },
+		colors: ["#0ea5e9"],
+	});
+
+	const allocationChartOptions = useChart({
+		labels: freelancer.allocation.map((item) => item.label),
+		colors: freelancer.allocation.map((item) => item.color),
+		stroke: { show: false },
+		legend: { position: "bottom" },
+		dataLabels: { enabled: false },
 		plotOptions: {
 			pie: {
-				donut: {
-					size: "60%",
-				},
+				donut: { size: "66%" },
 			},
 		},
 	});
 
+	const trustVariant = (value: string) => {
+		if (value === "Trusted") return "success";
+		if (value === "Moderate") return "info";
+		if (value === "Watch") return "warning";
+		return "error";
+	};
+
+	const taskDelta = (estimated: number, actual: number) => ((actual - estimated) / estimated) * 100;
+
 	return (
 		<div className="flex flex-col gap-4">
-			{/* summary 区块 */}
-			<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-none shadow-none">
+			<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 				<div>
 					<Title as="h4" className="text-xl mb-1">
-						Analysis overview
+						Freelancer Analytics
 					</Title>
 					<Text variant="body2" className="text-muted-foreground">
-						Explore the metrics to understand trends and drive.
+						Track billable performance, delivery reliability, and client health.
 					</Text>
 				</div>
 				<div className="flex items-center gap-2">
 					<Text variant="body2" className="text-muted-foreground">
 						Show by:
 					</Text>
-					<Select value={timeType} onValueChange={(v) => setTimeType(v as any)}>
+					<Select value={timeType} onValueChange={(v) => setTimeType(v as "day" | "week" | "month")}>
 						<SelectTrigger className="w-32 h-9">
 							<SelectValue />
 						</SelectTrigger>
@@ -246,8 +225,92 @@ export default function Analysis() {
 				</div>
 			</div>
 
+			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+				<Card>
+					<CardHeader className="pb-2">
+						<CardTitle>
+							<Text variant="subTitle2">Billable Hours</Text>
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<Title as="h3" className="text-2xl">
+							{freelancer.billableHours.value}h
+						</Title>
+						<div className="flex items-center gap-2 mt-1">
+							<Trend value={freelancer.billableHours.change} />
+							<Text variant="caption" className="text-muted-foreground">
+								vs previous period
+							</Text>
+						</div>
+						<div className="mt-3">
+							<div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+								<span>Target progress</span>
+								<span>{freelancer.billableHours.target}%</span>
+							</div>
+							<Progress value={freelancer.billableHours.target} />
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader className="pb-2">
+						<CardTitle>
+							<Text variant="subTitle2">Total Earnings</Text>
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<Title as="h3" className="text-2xl">
+							${freelancer.earnings.value.toLocaleString()}
+						</Title>
+						<div className="flex items-center gap-2 mt-1">
+							<Trend value={freelancer.earnings.change} />
+							<Text variant="caption" className="text-muted-foreground">
+								revenue growth
+							</Text>
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader className="pb-2">
+						<CardTitle>
+							<Text variant="subTitle2">Utilization Rate</Text>
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<Title as="h3" className="text-2xl">
+							{freelancer.utilization.value}%
+						</Title>
+						<div className="flex items-center gap-2 mt-1">
+							<Trend value={freelancer.utilization.change} />
+							<Text variant="caption" className="text-muted-foreground">
+								billable capacity
+							</Text>
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader className="pb-2">
+						<CardTitle>
+							<Text variant="subTitle2">Productivity Score</Text>
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<Title as="h3" className="text-2xl">
+							{freelancer.productivity.value}/100
+						</Title>
+						<div className="flex items-center gap-2 mt-1">
+							<Trend value={freelancer.productivity.change} />
+							<Text variant="caption" className="text-muted-foreground">
+								task efficiency
+							</Text>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+
 			<div className="flex flex-col xl:grid grid-cols-4 gap-4">
-				{/* Web analytic 主图表卡片 */}
 				<Card className="col-span-4 xl:col-span-3">
 					<CardHeader className="flex flex-row items-center justify-between pb-2">
 						<CardTitle>
@@ -282,75 +345,61 @@ export default function Analysis() {
 							</div>
 						</div>
 						<div className="w-full min-h-[200px] mt-2">
-							<Chart type="line" height={320} options={chartOptions} series={webAnalytic.chart.series} />
+							<Chart type="line" height={320} options={webChartOptions} series={webAnalytic.chart.series} />
 						</div>
 					</CardContent>
 				</Card>
 
-				{/* 右侧三小卡 */}
 				<div className="xl:col-span-1 h-full">
 					<div className="flex flex-col xl:flex-col md:flex-row gap-4 h-full">
 						<Card className="flex-1">
-							<CardHeader className="flex flex-row items-center justify-between pb-2">
+							<CardHeader className="pb-2">
 								<CardTitle>
-									<Text variant="subTitle2">Visitor</Text>
+									<Text variant="subTitle2">Invoice Health</Text>
 								</CardTitle>
-								<CardAction className="rounded-full bg-orange-200 p-2 w-10 h-10 flex items-center justify-center">
-									<Icon icon="mdi:users" size={20} color="black" />
-								</CardAction>
 							</CardHeader>
-							<CardContent>
-								<Title as="h3" className="text-xl">
-									{visitor.value.toLocaleString()}
-								</Title>
-								<div className="flex flex-row gap-2 items-center">
-									<Trend value={visitor.change} />
-									<Text variant="caption" className="text-muted-foreground flex items-center">
-										{visitor.tip}
-									</Text>
+							<CardContent className="space-y-2">
+								<div className="flex items-center justify-between text-sm">
+									<span className="text-muted-foreground">Paid</span>
+									<span className="font-semibold text-success">{freelancer.invoiceHealth.paid}</span>
+								</div>
+								<div className="flex items-center justify-between text-sm">
+									<span className="text-muted-foreground">Pending</span>
+									<span className="font-semibold text-warning">{freelancer.invoiceHealth.pending}</span>
+								</div>
+								<div className="flex items-center justify-between text-sm">
+									<span className="text-muted-foreground">Overdue</span>
+									<span className="font-semibold text-error">{freelancer.invoiceHealth.overdue}</span>
 								</div>
 							</CardContent>
 						</Card>
 						<Card className="flex-1">
-							<CardHeader className="flex flex-row items-center justify-between pb-2">
+							<CardHeader className="pb-2">
 								<CardTitle>
-									<Text variant="subTitle2">Conversion rate</Text>
+									<Text variant="subTitle2">On-time Delivery</Text>
 								</CardTitle>
-								<CardAction className="rounded-full bg-emerald-200 p-2 w-10 h-10 flex items-center justify-center">
-									<Icon icon="ph:seal-percent-fill" size={20} color="black" />
-								</CardAction>
 							</CardHeader>
 							<CardContent>
-								<Title as="h3" className="text-xl">
-									{conversionRate.value}%
+								<Title as="h3" className="text-2xl">
+									{freelancer.onTimeRate.value}%
 								</Title>
-								<div className="flex flex-row gap-2 items-center">
-									<Trend value={conversionRate.change} />
-									<Text variant="caption" className="text-muted-foreground flex items-center">
-										{conversionRate.tip}
+								<div className="flex items-center gap-2 mt-1">
+									<Trend value={freelancer.onTimeRate.change} />
+									<Text variant="caption" className="text-muted-foreground">
+										delivery trend
 									</Text>
 								</div>
+								<Progress value={freelancer.onTimeRate.value} className="mt-3" />
 							</CardContent>
 						</Card>
 						<Card className="flex-1">
-							<CardHeader className="flex flex-row items-center justify-between pb-2">
+							<CardHeader className="pb-2">
 								<CardTitle>
-									<Text variant="subTitle2">Ad campaign clicks</Text>
+									<Text variant="subTitle2">Quick Insight</Text>
 								</CardTitle>
-								<CardAction className="rounded-full bg-purple-200 p-2 w-10 h-10 flex items-center justify-center">
-									<Icon icon="heroicons-solid:cursor-click" size={20} color="black" />
-								</CardAction>
 							</CardHeader>
-							<CardContent>
-								<Title as="h3" className="text-xl">
-									{adCampaign.value.toLocaleString()}
-								</Title>
-								<div className="flex flex-row gap-2 items-center">
-									<Trend value={adCampaign.change} />
-									<Text variant="caption" className="text-muted-foreground flex items-center">
-										{adCampaign.tip}
-									</Text>
-								</div>
+							<CardContent className="text-sm text-muted-foreground">
+								Highest time allocation is on client work, while estimate overruns are mostly from integration tasks.
 							</CardContent>
 						</Card>
 					</div>
@@ -358,184 +407,96 @@ export default function Analysis() {
 			</div>
 
 			<div className="grid grid-cols-12 gap-4">
-				{/* Top pages */}
-				<Card className="col-span-12 md:col-span-6 xl:col-span-4">
-					<CardHeader className="flex flex-row items-center justify-between pb-2">
+				<Card className="col-span-12 xl:col-span-8">
+					<CardHeader>
 						<CardTitle>
 							<Title as="h3" className="text-lg">
-								Top pages
-							</Title>
-						</CardTitle>
-						<CardAction>
-							<Button size="sm" variant="outline">
-								<Icon icon="mdi:download" className="mr-1" />
-								Export data
-							</Button>
-						</CardAction>
-					</CardHeader>
-					<CardContent>
-						<div className="overflow-x-auto">
-							<table className="w-full text-sm">
-								<thead>
-									<tr>
-										<th className="text-left py-1">PAGE URL</th>
-										<th className="text-right py-1">VIEWS</th>
-										<th className="text-right py-1">UNIQUE VISITORS</th>
-									</tr>
-								</thead>
-								<tbody>
-									{topPages.map((row) => (
-										<tr key={row.url} className="border-t">
-											<td className="py-2">{row.url}</td>
-											<td className="py-2">
-												<div className="flex items-center gap-2 justify-end">
-													{row.views.toLocaleString()} <Trend value={row.viewsChange} />
-												</div>
-											</td>
-											<td className="py-2">
-												<div className="flex items-center gap-2 justify-end">
-													{row.unique.toLocaleString()} <Trend value={row.uniqueChange} />
-												</div>
-											</td>
-										</tr>
-									))}
-								</tbody>
-							</table>
-						</div>
-					</CardContent>
-				</Card>
-
-				{/* Session devices 饼图 */}
-				<Card className="col-span-12 md:col-span-6 xl:col-span-4">
-					<CardHeader className="flex flex-row items-center justify-between pb-2">
-						<CardTitle>
-							<Title as="h3" className="text-lg">
-								Session devices
+								Earnings Trend
 							</Title>
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="flex flex-col items-center gap-2">
-							<div className="w-full max-w-[180px]">
-								<Chart type="donut" height={320} options={deviceChartOptions} series={sessionDevices.map((d) => d.value)} />
-							</div>
-							<div className="flex justify-center gap-4 mt-2">
-								{sessionDevices.map((d) => (
-									<div key={d.label} className="flex flex-col items-center gap-1">
-										<Icon icon={d.icon} size={20} color={d.color} />
-										<Text variant="body2">{d.label}</Text>
-										<Text variant="body2" className="font-bold">
-											{d.value}%
-										</Text>
-									</div>
-								))}
-							</div>
-						</div>
+						<Chart type="area" height={300} options={earningsChartOptions} series={[{ name: "Earnings", data: freelancer.earningsTrend }]} />
 					</CardContent>
 				</Card>
 
-				{/* Top channel */}
 				<Card className="col-span-12 xl:col-span-4">
-					<CardHeader className="flex flex-row items-center justify-between pb-2">
+					<CardHeader>
 						<CardTitle>
 							<Title as="h3" className="text-lg">
-								Top channel
+								Time Allocation
 							</Title>
 						</CardTitle>
-						<CardAction>
-							<Button size="sm" variant="outline">
-								<Icon icon="mdi:download" className="mr-1" />
-								Export data
-							</Button>
-						</CardAction>
 					</CardHeader>
 					<CardContent>
-						<div className="flex items-center gap-4 mb-2">
-							<Title as="h3" className="text-xl">
-								{topChannels.reduce((acc, c) => acc + c.total, 0).toLocaleString()}
-							</Title>
-							<div className="flex items-center gap-2">
-								<Trend value={2.6} />
-								<Text variant="caption" className="text-muted-foreground">
-									vs last month
-								</Text>
-							</div>
-						</div>
-						<table className="w-full text-sm">
-							<thead>
-								<tr>
-									<th className="text-left py-1">CHANNEL</th>
-									<th className="text-right py-1">PERCENTAGE</th>
-									<th className="text-right py-1">TOTAL</th>
-								</tr>
-							</thead>
-							<tbody>
-								{topChannels.map((row) => (
-									<tr key={row.name} className="border-t">
-										<td className="py-2 flex items-center gap-2">
-											<Icon icon={row.icon} size={18} />
-											{row.name}
-										</td>
-										<td className="py-2 text-right">{row.percent}%</td>
-										<td className="py-2 text-right">{row.total.toLocaleString()}</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
+						<Chart type="donut" height={300} options={allocationChartOptions} series={freelancer.allocation.map((item) => item.value)} />
 					</CardContent>
 				</Card>
 
-				{/* Traffic data 表格 */}
-				<Card className="col-span-12">
-					<CardHeader className="flex flex-row items-center justify-between pb-2">
+				<Card className="col-span-12 xl:col-span-6">
+					<CardHeader>
 						<CardTitle>
 							<Title as="h3" className="text-lg">
-								Traffic data
+								Top Clients
 							</Title>
 						</CardTitle>
-						<CardAction>
-							<Button size="sm" variant="outline">
-								<Icon icon="mdi:download" className="mr-1" />
-								Export data
-							</Button>
-						</CardAction>
 					</CardHeader>
 					<CardContent>
 						<div className="overflow-x-auto">
 							<table className="w-full text-sm">
 								<thead>
 									<tr>
-										<th className="text-left p-2">SOURCE</th>
-										<th className="text-right p-2">VISITS</th>
-										<th className="text-right p-2">UNIQUE VISITORS</th>
-										<th className="text-right p-2">BOUNCE RATE</th>
-										<th className="text-right p-2">AVG. SESSION DURATION</th>
-										<th className="text-left p-2">PROGRESS TO GOAL (%)</th>
+										<th className="text-left py-2">Client</th>
+										<th className="text-right py-2">Revenue</th>
+										<th className="text-right py-2">Hours</th>
+										<th className="text-right py-2">Trust</th>
 									</tr>
 								</thead>
 								<tbody>
-									{trafficData.map((row) => (
-										<tr key={row.source} className="border-t">
-											<td className="p-2 font-mono">{row.source}</td>
-											<td className="p-2 text-right">{row.visits.toLocaleString()}</td>
-											<td className="p-2 text-right">{row.unique.toLocaleString()}</td>
-											<td className="p-2 text-right">
-												<div className="flex items-center gap-2 justify-end">
-													<Trend value={row.bounce} />
-												</div>
-											</td>
-											<td className="p-2 text-right">{row.duration}</td>
-											<td className="p-2">
-												<div className="flex items-center gap-2">
-													<Progress value={row.progress} />
-													<span className="text-xs ml-2 align-middle">{row.progress}%</span>
-												</div>
+									{freelancer.topClients.map((row) => (
+										<tr key={row.name} className="border-t">
+											<td className="py-2">{row.name}</td>
+											<td className="py-2 text-right">${row.revenue.toLocaleString()}</td>
+											<td className="py-2 text-right">{row.hours.toFixed(1)}h</td>
+											<td className="py-2 text-right">
+												<Badge variant={trustVariant(row.trust)}>{row.trust}</Badge>
 											</td>
 										</tr>
 									))}
 								</tbody>
 							</table>
 						</div>
+					</CardContent>
+				</Card>
+
+				<Card className="col-span-12 xl:col-span-6">
+					<CardHeader>
+						<CardTitle>
+							<Title as="h3" className="text-lg">
+								Estimated vs Actual Task Hours
+							</Title>
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						{freelancer.taskAccuracy.map((task) => {
+							const delta = taskDelta(task.estimated, task.actual);
+							const consumed = Math.min(100, (task.actual / task.estimated) * 100);
+							return (
+								<div key={task.task} className="rounded-lg border p-3">
+									<div className="flex flex-wrap items-center justify-between gap-2">
+										<div className="font-medium">{task.task}</div>
+										<Badge variant={task.status === "On Time" ? "success" : "error"}>{task.status}</Badge>
+									</div>
+									<div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+										<span>
+											Est {task.estimated}h / Actual {task.actual.toFixed(1)}h
+										</span>
+										<Trend value={delta} />
+									</div>
+									<Progress value={consumed} className="mt-2" />
+								</div>
+							);
+						})}
 					</CardContent>
 				</Card>
 			</div>

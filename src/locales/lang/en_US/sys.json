@@ -107,6 +107,14 @@
 			"permission": "Permission",
 			"permission.page_test": "Page Permission Test",
 			"management": "Management",
+			"operations": {
+				"index": "Operations",
+				"invoicing": "Automated Invoicing",
+				"reporting": "Reporting",
+				"invoice_control": "Invoice Numbering",
+				"productivity": "Productivity Score",
+				"client_trust": "Client Trust"
+			},
 			"client": "Client",
 			"projects": "Projects",
 			"tasks": "Tasks",

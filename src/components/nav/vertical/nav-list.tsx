@@ -7,7 +7,7 @@ import { NavItem } from "./nav-item";
 export function NavList({ data, depth = 1 }: NavListProps) {
 	const location = useLocation();
 	const isActive = location.pathname.includes(data.path);
-	const [open, setOpen] = useState(isActive);
+	const [open, setOpen] = useState(Boolean(data.open) || isActive);
 	const hasChild = data.children && data.children.length > 0;
 
 	const handleClick = () => {
