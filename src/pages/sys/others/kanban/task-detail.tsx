@@ -17,6 +17,7 @@ type Props = {
 };
 export default function TaskDetail({ task }: Props) {
 	const { title, reporter, assignee = [], tags = [], date, priority, description, attachments, comments = [] } = task;
+	const selectedDate = date ? dayjs(date).toDate() : undefined;
 	return (
 		<>
 			<Container>
@@ -58,7 +59,7 @@ export default function TaskDetail({ task }: Props) {
 							<Button variant={"outline"}>{date ? dayjs(date).format("DD/MM/YYYY") : <span>Pick a date</span>}</Button>
 						</PopoverTrigger>
 						<PopoverContent className="w-auto p-0">
-							<Calendar mode="single" selected={date} initialFocus />
+							<Calendar mode="single" selected={selectedDate} initialFocus />
 						</PopoverContent>
 					</Popover>
 				</div>

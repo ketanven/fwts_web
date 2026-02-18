@@ -1,7 +1,8 @@
 export enum TaskPriority {
-	LOW = "Low",
-	MEDIUM = "Medium",
-	HIGH = "High",
+	LOW = "low",
+	MEDIUM = "medium",
+	HIGH = "high",
+	URGENT = "urgent",
 }
 
 export enum TaskTag {
@@ -28,9 +29,13 @@ export type Task = {
 	title: string;
 	reporter: string; // avatar
 	priority: TaskPriority;
+	status?: string;
+	columnId?: string;
+	projectId?: string;
+	taskId?: string;
 	assignee?: string[]; // avatar array
 	tags?: string[];
-	date?: Date;
+	date?: Date | string;
 	description?: string;
 	comments?: TaskComment[];
 	attachments?: string[];

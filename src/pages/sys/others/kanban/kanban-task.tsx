@@ -14,10 +14,12 @@ import { type Task, TaskPriority } from "./types";
 type Props = {
 	id: string;
 	task: Task;
+	onDeleteTask?: (taskId: string) => void;
+	onChangeTaskStatus?: (taskId: string, status: string) => void;
 	isDragging?: boolean;
 };
 
-function KanbanTask({ id, task, isDragging }: Props) {
+function KanbanTask({ id, task, onDeleteTask, onChangeTaskStatus, isDragging }: Props) {
 	const [drawerOpen, setDrawerOpen] = useState(false);
 
 	const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
@@ -27,7 +29,7 @@ function KanbanTask({ id, task, isDragging }: Props) {
 		transition,
 	};
 
-	const { title, comments = [], attachments = [], priority, assignee } = task;
+	const { title, comments = [], attachments = [], priority, assignee, status = "todo" } = task;
 
 	return (
 		<>
@@ -67,14 +69,15 @@ function KanbanTask({ id, task, isDragging }: Props) {
 					<SheetHeader>
 						<div className="flex items-center justify-between">
 							<div>
-								<Select defaultValue="To do">
+								<Select value={status} onValueChange={(value) => onChangeTaskStatus?.(id, value)}>
 									<SelectTrigger size="default">
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="To do">To do</SelectItem>
-										<SelectItem value="In progress">In progress</SelectItem>
-										<SelectItem value="Done">Done</SelectItem>
+										<SelectItem value="todo">To do</SelectItem>
+										<SelectItem value="in_progress">In progress</SelectItem>
+										<SelectItem value="review">Review</SelectItem>
+										<SelectItem value="done">Done</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>
@@ -82,7 +85,7 @@ function KanbanTask({ id, task, isDragging }: Props) {
 								<Button variant="ghost" size="icon">
 									<Icon icon="solar:like-bold" size={20} className="text-success!" />
 								</Button>
-								<Button variant="ghost" size="icon">
+								<Button variant="ghost" size="icon" onClick={() => onDeleteTask?.(id)}>
 									<Icon icon="solar:trash-bin-trash-bold" size={20} className="text-error!" />
 								</Button>
 								<Button variant="ghost" size="icon">
@@ -105,6 +108,8 @@ type TaskPrioritySvgProps = {
 };
 function TaskPrioritySvg({ taskPriority }: TaskPrioritySvgProps) {
 	switch (taskPriority) {
+		case TaskPriority.URGENT:
+			return <Icon icon="local:ic-rise" size={20} color={themeVars.colors.palette.error.default} className="" />;
 		case TaskPriority.HIGH:
 			return <Icon icon="local:ic-rise" size={20} color={themeVars.colors.palette.warning.default} className="" />;
 		case TaskPriority.MEDIUM:

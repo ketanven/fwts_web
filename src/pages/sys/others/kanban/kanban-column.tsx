@@ -21,6 +21,8 @@ type Props = {
 	clearColumn: (columnId: string) => void;
 	deleteColumn: (columnId: string) => void;
 	renameColumn: (column: Column) => void;
+	deleteTask?: (taskId: string) => void;
+	changeTaskStatus?: (taskId: string, status: string) => void;
 	isDragging?: boolean;
 };
 
@@ -32,6 +34,8 @@ export default function KanbanColumn({
 	clearColumn,
 	deleteColumn,
 	renameColumn,
+	deleteTask,
+	changeTaskStatus,
 	isDragging,
 }: Props) {
 	const { themeMode } = useSettings();
@@ -171,7 +175,7 @@ export default function KanbanColumn({
 			<SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
 				<div className="min-h-[10px]">
 					{tasks.map((task) => (
-						<KanbanTask key={task.id} id={task.id} task={task} />
+						<KanbanTask key={task.id} id={task.id} task={task} onDeleteTask={deleteTask} onChangeTaskStatus={changeTaskStatus} />
 					))}
 				</div>
 			</SortableContext>

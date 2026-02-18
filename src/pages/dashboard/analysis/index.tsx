@@ -1,145 +1,66 @@
+import analysisService from "@/api/services/analysisService";
 import { Chart } from "@/components/chart/chart";
 import { useChart } from "@/components/chart/useChart";
 import Icon from "@/components/icon/icon";
 import { Badge } from "@/ui/badge";
+import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { Progress } from "@/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Text, Title } from "@/ui/typography";
 import { cn } from "@/utils";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
-const timeOptions = [
+type TimeType = "day" | "week" | "month";
+type AnalysisData = Record<string, any>;
+
+type ParsedClient = { name: string; revenue: number; hours: number; trust: string };
+type ParsedTask = { task: string; estimated: number; actual: number; status: string };
+type ParsedAllocation = { label: string; value: number; color: string };
+
+const timeOptions: { label: string; value: TimeType }[] = [
 	{ label: "Day", value: "day" },
 	{ label: "Week", value: "week" },
 	{ label: "Month", value: "month" },
 ];
 
-const dashboardData = {
-	webAnalytic: {
-		day: {
-			pageViews: 32124,
-			pageViewsChange: 4.2,
-			avgTime: "3m 16s",
-			avgTimeChange: -0.2,
-			chart: {
-				series: [
-					{ name: "Natural", data: [40000, 60000, 90000, 100000, 80000, 70000, 60000, 50000, 70000, 90000, 80000, 90000] },
-					{ name: "Referral", data: [30000, 40000, 50000, 60000, 50000, 40000, 30000, 40000, 50000, 60000, 50000, 40000] },
-					{ name: "Direct", data: [50000, 60000, 40000, 30000, 40000, 50000, 60000, 70000, 80000, 70000, 60000, 50000] },
-				],
-				categories: ["01 Jun", "02 Jun", "03 Jun", "04 Jun", "05 Jun", "06 Jun", "07 Jun", "08 Jun", "09 Jun", "10 Jun", "11 Jun", "12 Jun"],
-			},
-		},
-		week: {
-			pageViews: 210324,
-			pageViewsChange: 2.1,
-			avgTime: "3m 10s",
-			avgTimeChange: -0.5,
-			chart: {
-				series: [
-					{ name: "Natural", data: [400000, 600000, 900000, 1000000, 800000, 700000, 600000, 500000, 700000, 900000, 800000, 900000] },
-					{ name: "Referral", data: [300000, 400000, 500000, 600000, 500000, 400000, 300000, 400000, 500000, 600000, 500000, 400000] },
-					{ name: "Direct", data: [500000, 600000, 400000, 300000, 400000, 500000, 600000, 700000, 800000, 700000, 600000, 500000] },
-				],
-				categories: ["Week 1", "Week 2", "Week 3", "Week 4", "Week 5", "Week 6", "Week 7", "Week 8", "Week 9", "Week 10", "Week 11", "Week 12"],
-			},
-		},
-		month: {
-			pageViews: 420354,
-			pageViewsChange: 4.8,
-			avgTime: "3m 18s",
-			avgTimeChange: -0.3,
-			chart: {
-				series: [
-					{ name: "Natural", data: [50000, 60000, 65000, 67000, 62000, 64000, 66000, 68000, 69000, 70000, 71000, 72000] },
-					{ name: "Referral", data: [40000, 42000, 43000, 44000, 45000, 46000, 47000, 48000, 49000, 50000, 51000, 52000] },
-					{ name: "Direct", data: [45000, 47000, 48000, 49000, 50000, 51000, 52000, 53000, 54000, 55000, 56000, 57000] },
-				],
-				categories: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-			},
-		},
-	},
-	freelancer: {
-		day: {
-			billableHours: { value: 7.6, change: 6.1, target: 95 },
-			earnings: { value: 540, change: 4.7 },
-			utilization: { value: 83, change: 2.4 },
-			productivity: { value: 86, change: 5.2 },
-			invoiceHealth: { paid: 4, pending: 2, overdue: 1 },
-			onTimeRate: { value: 78, change: 1.6 },
-			earningsTrend: [420, 380, 520, 490, 610, 540, 560],
-			allocation: [
-				{ label: "Client Work", value: 62, color: "#22c55e" },
-				{ label: "Meetings", value: 14, color: "#f59e0b" },
-				{ label: "Admin", value: 12, color: "#6366f1" },
-				{ label: "Learning", value: 12, color: "#ec4899" },
-			],
-			topClients: [
-				{ name: "Northstar Studio", revenue: 1200, hours: 15.2, trust: "Trusted" },
-				{ name: "Orbit Labs", revenue: 980, hours: 13.4, trust: "Watch" },
-				{ name: "Metrica", revenue: 770, hours: 10.1, trust: "Trusted" },
-			],
-			taskAccuracy: [
-				{ task: "Homepage Wireframes", estimated: 8, actual: 7.2, status: "On Time" },
-				{ task: "Payment Integration", estimated: 14, actual: 15.4, status: "Delayed" },
-				{ task: "Client Handoff Pack", estimated: 6, actual: 5.4, status: "On Time" },
-				{ task: "Regression QA", estimated: 5, actual: 4.8, status: "On Time" },
-			],
-		},
-		week: {
-			billableHours: { value: 38.4, change: 8.2, target: 88 },
-			earnings: { value: 3140, change: 11.6 },
-			utilization: { value: 79, change: 3.1 },
-			productivity: { value: 82, change: 4.3 },
-			invoiceHealth: { paid: 9, pending: 5, overdue: 2 },
-			onTimeRate: { value: 74, change: -1.2 },
-			earningsTrend: [2620, 2840, 2980, 3050, 3190, 3140, 3260],
-			allocation: [
-				{ label: "Client Work", value: 58, color: "#22c55e" },
-				{ label: "Meetings", value: 17, color: "#f59e0b" },
-				{ label: "Admin", value: 13, color: "#6366f1" },
-				{ label: "Learning", value: 12, color: "#ec4899" },
-			],
-			topClients: [
-				{ name: "Northstar Studio", revenue: 4200, hours: 52.2, trust: "Trusted" },
-				{ name: "Orbit Labs", revenue: 3680, hours: 47.7, trust: "Moderate" },
-				{ name: "Flowbase", revenue: 2190, hours: 29.4, trust: "Risk" },
-			],
-			taskAccuracy: [
-				{ task: "Homepage Wireframes", estimated: 8, actual: 7.6, status: "On Time" },
-				{ task: "Payment Integration", estimated: 14, actual: 15.8, status: "Delayed" },
-				{ task: "Client Handoff Pack", estimated: 6, actual: 6.2, status: "On Time" },
-				{ task: "Regression QA", estimated: 5, actual: 5.5, status: "Delayed" },
-			],
-		},
-		month: {
-			billableHours: { value: 154.6, change: 12.4, target: 91 },
-			earnings: { value: 12480, change: 14.8 },
-			utilization: { value: 81, change: 4.8 },
-			productivity: { value: 84, change: 6.2 },
-			invoiceHealth: { paid: 21, pending: 8, overdue: 3 },
-			onTimeRate: { value: 76, change: 2.1 },
-			earningsTrend: [8450, 9030, 9640, 10120, 10880, 11640, 12480],
-			allocation: [
-				{ label: "Client Work", value: 61, color: "#22c55e" },
-				{ label: "Meetings", value: 16, color: "#f59e0b" },
-				{ label: "Admin", value: 13, color: "#6366f1" },
-				{ label: "Learning", value: 10, color: "#ec4899" },
-			],
-			topClients: [
-				{ name: "Northstar Studio", revenue: 16200, hours: 204.2, trust: "Trusted" },
-				{ name: "Orbit Labs", revenue: 13840, hours: 177.3, trust: "Moderate" },
-				{ name: "Metrica", revenue: 10450, hours: 139.1, trust: "Trusted" },
-			],
-			taskAccuracy: [
-				{ task: "Homepage Wireframes", estimated: 32, actual: 29.3, status: "On Time" },
-				{ task: "Payment Integration", estimated: 56, actual: 61.2, status: "Delayed" },
-				{ task: "Client Handoff Pack", estimated: 24, actual: 22.8, status: "On Time" },
-				{ task: "Regression QA", estimated: 20, actual: 21.1, status: "On Time" },
-			],
-		},
-	},
+const allocationColors = ["#22c55e", "#f59e0b", "#6366f1", "#ec4899", "#0ea5e9", "#a855f7", "#ef4444"];
+
+const asRecord = (value: unknown): AnalysisData => (value && typeof value === "object" && !Array.isArray(value) ? (value as AnalysisData) : {});
+const asArray = <T = unknown>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+const toNumber = (value: unknown, fallback = 0) => {
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const pick = (obj: AnalysisData, keys: string[], fallback: unknown = undefined) => {
+	for (const key of keys) {
+		if (obj[key] !== undefined && obj[key] !== null) return obj[key];
+	}
+	return fallback;
+};
+
+const pickNumber = (obj: AnalysisData, keys: string[], fallback = 0) => toNumber(pick(obj, keys, fallback), fallback);
+const pickString = (obj: AnalysisData, keys: string[], fallback = "") => String(pick(obj, keys, fallback) ?? fallback);
+
+const formatCurrency = (value: number, currency = "USD") => {
+	if (!Number.isFinite(value)) return "-";
+	try {
+		return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 }).format(value);
+	} catch {
+		return `$${value.toFixed(2)}`;
+	}
+};
+
+const formatSecondsToClock = (seconds: number) => {
+	const safe = Math.max(0, Math.floor(seconds));
+	const hours = Math.floor(safe / 3600);
+	const minutes = Math.floor((safe % 3600) / 60);
+	const secs = safe % 60;
+	if (hours > 0) return `${hours}h ${minutes}m`;
+	return `${minutes}m ${secs}s`;
 };
 
 function Trend({ value }: { value: number }) {
@@ -151,22 +72,206 @@ function Trend({ value }: { value: number }) {
 			) : value < 0 ? (
 				<Icon icon="mdi:arrow-down" className="inline-block align-middle" size={16} />
 			) : null}
-			{Math.abs(value)}%
+			{Math.abs(value).toFixed(1)}%
 		</span>
 	);
 }
 
 export default function Analysis() {
-	const [timeType, setTimeType] = useState<"day" | "week" | "month">("day");
-	const webAnalytic = dashboardData.webAnalytic[timeType];
-	const freelancer = dashboardData.freelancer[timeType];
+	const [timeType, setTimeType] = useState<TimeType>("day");
+	const [loading, setLoading] = useState(true);
+	const [refreshing, setRefreshing] = useState(false);
+	const [summary, setSummary] = useState<AnalysisData>({});
+	const [webAnalytics, setWebAnalytics] = useState<AnalysisData>({});
+	const [earningsTrend, setEarningsTrend] = useState<AnalysisData>({});
+	const [timeAllocation, setTimeAllocation] = useState<AnalysisData>({});
+	const [topClients, setTopClients] = useState<AnalysisData>({});
+	const [taskAccuracy, setTaskAccuracy] = useState<AnalysisData>({});
+	const [invoiceHealth, setInvoiceHealth] = useState<AnalysisData>({});
+	const [exportData, setExportData] = useState<AnalysisData>({});
+
+	const days = timeType === "day" ? 1 : timeType === "week" ? 7 : 30;
+	const period = timeType === "month" ? "monthly" : "weekly";
+
+	const loadAnalysis = useCallback(async () => {
+		try {
+			setRefreshing(true);
+			const [summaryRes, webRes, earningsRes, allocationRes, clientsRes, accuracyRes, invoiceRes, exportRes] = await Promise.all([
+				analysisService.getSummary(),
+				analysisService.getWebAnalytics(days),
+				analysisService.getEarningsTrend(period),
+				analysisService.getTimeAllocation(),
+				analysisService.getTopClients(),
+				analysisService.getTaskAccuracy(),
+				analysisService.getInvoiceHealth(),
+				analysisService.getExport(),
+			]);
+			setSummary(asRecord(summaryRes));
+			setWebAnalytics(asRecord(webRes));
+			setEarningsTrend(asRecord(earningsRes));
+			setTimeAllocation(asRecord(allocationRes));
+			setTopClients(asRecord(clientsRes));
+			setTaskAccuracy(asRecord(accuracyRes));
+			setInvoiceHealth(asRecord(invoiceRes));
+			setExportData(asRecord(exportRes));
+		} catch (error: any) {
+			const message = error?.response?.data?.message || error?.response?.data?.detail || error?.message || "Failed to load analysis data.";
+			toast.error(message);
+		} finally {
+			setLoading(false);
+			setRefreshing(false);
+		}
+	}, [days, period]);
+
+	useEffect(() => {
+		loadAnalysis();
+	}, [loadAnalysis]);
+
+	const summaryData = useMemo(() => {
+		const billable = pickNumber(summary, ["billable_hours", "billableHours", "total_billable_hours"], 0);
+		const billableChange = pickNumber(summary, ["billable_hours_change", "billableHoursChange"], 0);
+		const billableTarget = pickNumber(summary, ["billable_target_progress", "billableTargetProgress", "target_progress"], 0);
+		const earnings = pickNumber(summary, ["total_earnings", "earnings", "revenue"], 0);
+		const earningsChange = pickNumber(summary, ["earnings_change", "revenue_change", "earningsGrowth"], 0);
+		const utilization = pickNumber(summary, ["utilization_rate", "utilization", "utilizationRate"], 0);
+		const utilizationChange = pickNumber(summary, ["utilization_change", "utilizationChange"], 0);
+		const productivity = pickNumber(summary, ["productivity_score", "productivity", "productivityScore"], 0);
+		const productivityChange = pickNumber(summary, ["productivity_change", "productivityChange"], 0);
+		const onTimeRate = pickNumber(summary, ["on_time_rate", "onTimeRate", "delivery_rate"], 0);
+		const onTimeRateChange = pickNumber(summary, ["on_time_rate_change", "onTimeRateChange"], 0);
+
+		return {
+			billable,
+			billableChange,
+			billableTarget: Math.max(0, Math.min(100, billableTarget || utilization)),
+			earnings,
+			earningsChange,
+			utilization: Math.max(0, Math.min(100, utilization)),
+			utilizationChange,
+			productivity: Math.max(0, Math.min(100, productivity)),
+			productivityChange,
+			onTimeRate: Math.max(0, Math.min(100, onTimeRate)),
+			onTimeRateChange,
+		};
+	}, [summary]);
+
+	const webData = useMemo(() => {
+		const chart = asRecord(pick(webAnalytics, ["chart"], {}));
+		const categories = asArray<string>(pick(chart, ["categories"], pick(webAnalytics, ["categories", "labels"], [])));
+		const rawSeries = asArray<AnalysisData>(pick(chart, ["series"], pick(webAnalytics, ["series"], [])));
+		const series = rawSeries
+			.map((item, idx) => {
+				const row = asRecord(item);
+				return {
+					name: pickString(row, ["name", "label"], `Series ${idx + 1}`),
+					data: asArray<number>(pick(row, ["data", "values"], [])).map((v) => toNumber(v, 0)),
+				};
+			})
+			.filter((row) => row.data.length > 0);
+
+		return {
+			pageViews: pickNumber(webAnalytics, ["page_views", "pageViews", "total_page_views"], 0),
+			pageViewsChange: pickNumber(webAnalytics, ["page_views_change", "pageViewsChange"], 0),
+			avgTimeSeconds: pickNumber(webAnalytics, ["avg_time_seconds", "avg_time", "avgTimeSeconds"], 0),
+			avgTimeChange: pickNumber(webAnalytics, ["avg_time_change", "avgTimeChange"], 0),
+			categories,
+			series: series.length ? series : [{ name: "Traffic", data: [0, 0, 0, 0, 0, 0, 0] }],
+		};
+	}, [webAnalytics]);
+
+	const earningsData = useMemo(() => {
+		const chart = asRecord(pick(earningsTrend, ["chart"], {}));
+		const categories = asArray<string>(pick(chart, ["categories"], pick(earningsTrend, ["categories", "labels"], [])));
+		const seriesRows = asArray<AnalysisData>(pick(chart, ["series"], pick(earningsTrend, ["series"], [])));
+
+		if (seriesRows.length > 0) {
+			const first = asRecord(seriesRows[0]);
+			const values = asArray<number>(pick(first, ["data", "values"], [])).map((item) => toNumber(item, 0));
+			return {
+				series: values.length ? values : [0, 0, 0, 0],
+				categories: categories.length ? categories : values.map((_, idx) => `P${idx + 1}`),
+			};
+		}
+
+		const list = asArray<AnalysisData>(pick(earningsTrend, ["trend", "items", "data", "points"], []));
+		if (list.length > 0) {
+			return {
+				series: list.map((row) => pickNumber(asRecord(row), ["value", "amount", "earnings"], 0)),
+				categories: list.map((row, idx) => pickString(asRecord(row), ["label", "period", "date", "name"], `P${idx + 1}`)),
+			};
+		}
+
+		return {
+			series: [0, 0, 0, 0],
+			categories: ["P1", "P2", "P3", "P4"],
+		};
+	}, [earningsTrend]);
+
+	const allocationData = useMemo(() => {
+		const list = asArray<AnalysisData>(pick(timeAllocation, ["allocation", "items", "data"], []));
+		const rows: ParsedAllocation[] = list
+			.map((row, idx) => {
+				const item = asRecord(row);
+				return {
+					label: pickString(item, ["label", "name", "category", "type"], `Category ${idx + 1}`),
+					value: pickNumber(item, ["value", "percent", "percentage", "hours", "duration"], 0),
+					color: pickString(item, ["color"], allocationColors[idx % allocationColors.length]),
+				};
+			})
+			.filter((item) => item.value > 0);
+		return rows.length ? rows : [{ label: "No Data", value: 100, color: "#94a3b8" }];
+	}, [timeAllocation]);
+
+	const clientRows = useMemo(() => {
+		const list = asArray<AnalysisData>(pick(topClients, ["clients", "items", "data", "top_clients"], []));
+		return list.map((row, idx) => {
+			const item = asRecord(row);
+			return {
+				name: pickString(item, ["name", "client", "client_name"], `Client ${idx + 1}`),
+				revenue: pickNumber(item, ["revenue", "amount", "earnings"], 0),
+				hours: pickNumber(item, ["hours", "billable_hours", "tracked_hours"], 0),
+				trust: pickString(item, ["trust", "status", "health"], "Moderate"),
+			} as ParsedClient;
+		});
+	}, [topClients]);
+
+	const taskRows = useMemo(() => {
+		const list = asArray<AnalysisData>(pick(taskAccuracy, ["tasks", "items", "data", "task_accuracy"], []));
+		return list.map((row, idx) => {
+			const item = asRecord(row);
+			return {
+				task: pickString(item, ["task", "title", "name"], `Task ${idx + 1}`),
+				estimated: pickNumber(item, ["estimated", "estimated_hours", "estimate"], 0),
+				actual: pickNumber(item, ["actual", "actual_hours", "actual_spent"], 0),
+				status: pickString(item, ["status", "accuracy_status"], "On Time"),
+			} as ParsedTask;
+		});
+	}, [taskAccuracy]);
+
+	const invoiceData = useMemo(() => {
+		return {
+			paid: pickNumber(invoiceHealth, ["paid", "paid_count", "paid_invoices"], 0),
+			pending: pickNumber(invoiceHealth, ["pending", "pending_count", "pending_invoices"], 0),
+			overdue: pickNumber(invoiceHealth, ["overdue", "overdue_count", "overdue_invoices"], 0),
+		};
+	}, [invoiceHealth]);
+
+	const quickInsight = useMemo(() => {
+		const topAllocation = [...allocationData].sort((a, b) => b.value - a.value)[0];
+		const delayed = taskRows.filter((row) => String(row.status).toLowerCase().includes("delay")).length;
+		if (!topAllocation) return "No analysis insight available yet.";
+		return `${topAllocation.label} has highest allocation (${topAllocation.value.toFixed(0)}%). Delayed tasks: ${delayed}.`;
+	}, [allocationData, taskRows]);
 
 	const webChartOptions = useChart({
-		xaxis: { categories: webAnalytic.chart.categories },
+		xaxis: { categories: webData.categories },
+		chart: { toolbar: { show: false } },
+		dataLabels: { enabled: false },
+		stroke: { curve: "smooth", width: 3 },
 	});
 
 	const earningsChartOptions = useChart({
-		xaxis: { categories: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] },
+		xaxis: { categories: earningsData.categories },
 		chart: { toolbar: { show: false } },
 		stroke: { curve: "smooth", width: 3 },
 		dataLabels: { enabled: false },
@@ -174,44 +279,57 @@ export default function Analysis() {
 	});
 
 	const allocationChartOptions = useChart({
-		labels: freelancer.allocation.map((item) => item.label),
-		colors: freelancer.allocation.map((item) => item.color),
+		labels: allocationData.map((item) => item.label),
+		colors: allocationData.map((item) => item.color),
 		stroke: { show: false },
 		legend: { position: "bottom" },
 		dataLabels: { enabled: false },
-		plotOptions: {
-			pie: {
-				donut: { size: "66%" },
-			},
-		},
+		plotOptions: { pie: { donut: { size: "66%" } } },
 	});
 
 	const trustVariant = (value: string) => {
-		if (value === "Trusted") return "success";
-		if (value === "Moderate") return "info";
-		if (value === "Watch") return "warning";
+		const normalized = value.toLowerCase();
+		if (normalized.includes("trust") || normalized.includes("good")) return "success";
+		if (normalized.includes("moderate") || normalized.includes("info")) return "info";
+		if (normalized.includes("watch") || normalized.includes("warn") || normalized.includes("pending")) return "warning";
 		return "error";
 	};
 
-	const taskDelta = (estimated: number, actual: number) => ((actual - estimated) / estimated) * 100;
+	const taskDelta = (estimated: number, actual: number) => {
+		if (estimated <= 0) return 0;
+		return ((actual - estimated) / estimated) * 100;
+	};
+
+	const exportUrl = pickString(exportData, ["url", "file_url", "download_url"], "");
+	const exportLabel = pickString(exportData, ["label", "name", "export_name"], "Export Ready");
+
+	if (loading) {
+		return (
+			<div className="space-y-4">
+				<Card>
+					<CardContent className="py-10 text-sm text-muted-foreground">Loading analysis data...</CardContent>
+				</Card>
+			</div>
+		);
+	}
 
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 				<div>
-					<Title as="h4" className="text-xl mb-1">
+					<Title as="h4" className="mb-1 text-xl">
 						Freelancer Analytics
 					</Title>
 					<Text variant="body2" className="text-muted-foreground">
-						Track billable performance, delivery reliability, and client health.
+						Live backend analytics from summary, web analytics, earnings trend, allocation, clients, tasks, invoices, and export APIs.
 					</Text>
 				</div>
 				<div className="flex items-center gap-2">
 					<Text variant="body2" className="text-muted-foreground">
 						Show by:
 					</Text>
-					<Select value={timeType} onValueChange={(v) => setTimeType(v as "day" | "week" | "month")}>
-						<SelectTrigger className="w-32 h-9">
+					<Select value={timeType} onValueChange={(v) => setTimeType(v as TimeType)}>
+						<SelectTrigger className="h-9 w-32">
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
@@ -222,6 +340,9 @@ export default function Analysis() {
 							))}
 						</SelectContent>
 					</Select>
+					<Button variant="outline" onClick={loadAnalysis} disabled={refreshing}>
+						{refreshing ? "Refreshing..." : "Refresh"}
+					</Button>
 				</div>
 			</div>
 
@@ -234,20 +355,20 @@ export default function Analysis() {
 					</CardHeader>
 					<CardContent>
 						<Title as="h3" className="text-2xl">
-							{freelancer.billableHours.value}h
+							{summaryData.billable.toFixed(1)}h
 						</Title>
-						<div className="flex items-center gap-2 mt-1">
-							<Trend value={freelancer.billableHours.change} />
+						<div className="mt-1 flex items-center gap-2">
+							<Trend value={summaryData.billableChange} />
 							<Text variant="caption" className="text-muted-foreground">
 								vs previous period
 							</Text>
 						</div>
 						<div className="mt-3">
-							<div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+							<div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
 								<span>Target progress</span>
-								<span>{freelancer.billableHours.target}%</span>
+								<span>{summaryData.billableTarget.toFixed(0)}%</span>
 							</div>
-							<Progress value={freelancer.billableHours.target} />
+							<Progress value={summaryData.billableTarget} />
 						</div>
 					</CardContent>
 				</Card>
@@ -260,10 +381,10 @@ export default function Analysis() {
 					</CardHeader>
 					<CardContent>
 						<Title as="h3" className="text-2xl">
-							${freelancer.earnings.value.toLocaleString()}
+							{formatCurrency(summaryData.earnings)}
 						</Title>
-						<div className="flex items-center gap-2 mt-1">
-							<Trend value={freelancer.earnings.change} />
+						<div className="mt-1 flex items-center gap-2">
+							<Trend value={summaryData.earningsChange} />
 							<Text variant="caption" className="text-muted-foreground">
 								revenue growth
 							</Text>
@@ -279,10 +400,10 @@ export default function Analysis() {
 					</CardHeader>
 					<CardContent>
 						<Title as="h3" className="text-2xl">
-							{freelancer.utilization.value}%
+							{summaryData.utilization.toFixed(0)}%
 						</Title>
-						<div className="flex items-center gap-2 mt-1">
-							<Trend value={freelancer.utilization.change} />
+						<div className="mt-1 flex items-center gap-2">
+							<Trend value={summaryData.utilizationChange} />
 							<Text variant="caption" className="text-muted-foreground">
 								billable capacity
 							</Text>
@@ -298,10 +419,10 @@ export default function Analysis() {
 					</CardHeader>
 					<CardContent>
 						<Title as="h3" className="text-2xl">
-							{freelancer.productivity.value}/100
+							{summaryData.productivity.toFixed(0)}/100
 						</Title>
-						<div className="flex items-center gap-2 mt-1">
-							<Trend value={freelancer.productivity.change} />
+						<div className="mt-1 flex items-center gap-2">
+							<Trend value={summaryData.productivityChange} />
 							<Text variant="caption" className="text-muted-foreground">
 								task efficiency
 							</Text>
@@ -310,26 +431,26 @@ export default function Analysis() {
 				</Card>
 			</div>
 
-			<div className="flex flex-col xl:grid grid-cols-4 gap-4">
+			<div className="flex flex-col gap-4 xl:grid xl:grid-cols-4">
 				<Card className="col-span-4 xl:col-span-3">
 					<CardHeader className="flex flex-row items-center justify-between pb-2">
 						<CardTitle>
 							<Title as="h3" className="text-lg">
-								Web analytic
+								Web Analytics
 							</Title>
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="flex flex-col gap-2">
-						<div className="flex flex-wrap gap-6 items-center">
+						<div className="flex flex-wrap items-center gap-6">
 							<div>
 								<Text variant="subTitle2" className="text-muted-foreground">
 									Page views
 								</Text>
 								<div className="flex items-end gap-2">
 									<Title as="h3" className="text-2xl">
-										{webAnalytic.pageViews.toLocaleString()}
+										{webData.pageViews.toLocaleString()}
 									</Title>
-									<Trend value={webAnalytic.pageViewsChange} />
+									<Trend value={webData.pageViewsChange} />
 								</div>
 							</div>
 							<div>
@@ -338,20 +459,20 @@ export default function Analysis() {
 								</Text>
 								<div className="flex items-end gap-2">
 									<Title as="h3" className="text-2xl">
-										{webAnalytic.avgTime}
+										{formatSecondsToClock(webData.avgTimeSeconds)}
 									</Title>
-									<Trend value={webAnalytic.avgTimeChange} />
+									<Trend value={webData.avgTimeChange} />
 								</div>
 							</div>
 						</div>
-						<div className="w-full min-h-[200px] mt-2">
-							<Chart type="line" height={320} options={webChartOptions} series={webAnalytic.chart.series} />
+						<div className="mt-2 min-h-[200px] w-full">
+							<Chart type="line" height={320} options={webChartOptions} series={webData.series} />
 						</div>
 					</CardContent>
 				</Card>
 
-				<div className="xl:col-span-1 h-full">
-					<div className="flex flex-col xl:flex-col md:flex-row gap-4 h-full">
+				<div className="h-full xl:col-span-1">
+					<div className="flex h-full flex-col gap-4 md:flex-row xl:flex-col">
 						<Card className="flex-1">
 							<CardHeader className="pb-2">
 								<CardTitle>
@@ -361,15 +482,15 @@ export default function Analysis() {
 							<CardContent className="space-y-2">
 								<div className="flex items-center justify-between text-sm">
 									<span className="text-muted-foreground">Paid</span>
-									<span className="font-semibold text-success">{freelancer.invoiceHealth.paid}</span>
+									<span className="font-semibold text-success">{invoiceData.paid}</span>
 								</div>
 								<div className="flex items-center justify-between text-sm">
 									<span className="text-muted-foreground">Pending</span>
-									<span className="font-semibold text-warning">{freelancer.invoiceHealth.pending}</span>
+									<span className="font-semibold text-warning">{invoiceData.pending}</span>
 								</div>
 								<div className="flex items-center justify-between text-sm">
 									<span className="text-muted-foreground">Overdue</span>
-									<span className="font-semibold text-error">{freelancer.invoiceHealth.overdue}</span>
+									<span className="font-semibold text-error">{invoiceData.overdue}</span>
 								</div>
 							</CardContent>
 						</Card>
@@ -381,15 +502,15 @@ export default function Analysis() {
 							</CardHeader>
 							<CardContent>
 								<Title as="h3" className="text-2xl">
-									{freelancer.onTimeRate.value}%
+									{summaryData.onTimeRate.toFixed(0)}%
 								</Title>
-								<div className="flex items-center gap-2 mt-1">
-									<Trend value={freelancer.onTimeRate.change} />
+								<div className="mt-1 flex items-center gap-2">
+									<Trend value={summaryData.onTimeRateChange} />
 									<Text variant="caption" className="text-muted-foreground">
 										delivery trend
 									</Text>
 								</div>
-								<Progress value={freelancer.onTimeRate.value} className="mt-3" />
+								<Progress value={summaryData.onTimeRate} className="mt-3" />
 							</CardContent>
 						</Card>
 						<Card className="flex-1">
@@ -398,9 +519,7 @@ export default function Analysis() {
 									<Text variant="subTitle2">Quick Insight</Text>
 								</CardTitle>
 							</CardHeader>
-							<CardContent className="text-sm text-muted-foreground">
-								Highest time allocation is on client work, while estimate overruns are mostly from integration tasks.
-							</CardContent>
+							<CardContent className="text-sm text-muted-foreground">{quickInsight}</CardContent>
 						</Card>
 					</div>
 				</div>
@@ -416,7 +535,7 @@ export default function Analysis() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<Chart type="area" height={300} options={earningsChartOptions} series={[{ name: "Earnings", data: freelancer.earningsTrend }]} />
+						<Chart type="area" height={300} options={earningsChartOptions} series={[{ name: "Earnings", data: earningsData.series }]} />
 					</CardContent>
 				</Card>
 
@@ -429,7 +548,7 @@ export default function Analysis() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<Chart type="donut" height={300} options={allocationChartOptions} series={freelancer.allocation.map((item) => item.value)} />
+						<Chart type="donut" height={300} options={allocationChartOptions} series={allocationData.map((item) => item.value)} />
 					</CardContent>
 				</Card>
 
@@ -446,23 +565,30 @@ export default function Analysis() {
 							<table className="w-full text-sm">
 								<thead>
 									<tr>
-										<th className="text-left py-2">Client</th>
-										<th className="text-right py-2">Revenue</th>
-										<th className="text-right py-2">Hours</th>
-										<th className="text-right py-2">Trust</th>
+										<th className="py-2 text-left">Client</th>
+										<th className="py-2 text-right">Revenue</th>
+										<th className="py-2 text-right">Hours</th>
+										<th className="py-2 text-right">Trust</th>
 									</tr>
 								</thead>
 								<tbody>
-									{freelancer.topClients.map((row) => (
+									{clientRows.map((row) => (
 										<tr key={row.name} className="border-t">
 											<td className="py-2">{row.name}</td>
-											<td className="py-2 text-right">${row.revenue.toLocaleString()}</td>
+											<td className="py-2 text-right">{formatCurrency(row.revenue)}</td>
 											<td className="py-2 text-right">{row.hours.toFixed(1)}h</td>
 											<td className="py-2 text-right">
 												<Badge variant={trustVariant(row.trust)}>{row.trust}</Badge>
 											</td>
 										</tr>
 									))}
+									{clientRows.length === 0 ? (
+										<tr>
+											<td className="py-4 text-center text-muted-foreground" colSpan={4}>
+												No client analytics available.
+											</td>
+										</tr>
+									) : null}
 								</tbody>
 							</table>
 						</div>
@@ -478,18 +604,18 @@ export default function Analysis() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="space-y-3">
-						{freelancer.taskAccuracy.map((task) => {
+						{taskRows.map((task) => {
 							const delta = taskDelta(task.estimated, task.actual);
-							const consumed = Math.min(100, (task.actual / task.estimated) * 100);
+							const consumed = task.estimated > 0 ? Math.min(100, (task.actual / task.estimated) * 100) : 0;
 							return (
 								<div key={task.task} className="rounded-lg border p-3">
 									<div className="flex flex-wrap items-center justify-between gap-2">
 										<div className="font-medium">{task.task}</div>
-										<Badge variant={task.status === "On Time" ? "success" : "error"}>{task.status}</Badge>
+										<Badge variant={String(task.status).toLowerCase().includes("delay") ? "error" : "success"}>{task.status}</Badge>
 									</div>
-									<div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+									<div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
 										<span>
-											Est {task.estimated}h / Actual {task.actual.toFixed(1)}h
+											Est {task.estimated.toFixed(1)}h / Actual {task.actual.toFixed(1)}h
 										</span>
 										<Trend value={delta} />
 									</div>
@@ -497,9 +623,31 @@ export default function Analysis() {
 								</div>
 							);
 						})}
+						{taskRows.length === 0 ? <div className="rounded-lg border p-4 text-sm text-muted-foreground">No task accuracy analytics available.</div> : null}
 					</CardContent>
 				</Card>
 			</div>
+
+			<Card>
+				<CardHeader className="flex flex-row items-center justify-between">
+					<CardTitle>
+						<Title as="h3" className="text-lg">
+							Analysis Export
+						</Title>
+					</CardTitle>
+					{exportUrl ? (
+						<Button variant="outline" asChild>
+							<a href={exportUrl} target="_blank" rel="noreferrer">
+								Download
+							</a>
+						</Button>
+					) : null}
+				</CardHeader>
+				<CardContent className="text-sm text-muted-foreground">
+					<div>{exportLabel || "Export endpoint connected."}</div>
+					{exportUrl ? <div className="mt-1 break-all">{exportUrl}</div> : <div className="mt-1">No export URL returned yet.</div>}
+				</CardContent>
+			</Card>
 		</div>
 	);
 }
