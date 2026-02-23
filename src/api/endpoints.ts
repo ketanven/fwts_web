@@ -86,3 +86,30 @@ export const KANBAN_API = {
 	cardDetail: (cardId: string | number) => `/kanban/cards/${cardId}/`,
 	cardMove: (cardId: string | number) => `/kanban/cards/${cardId}/move/`,
 };
+
+export const REPORTS_API = {
+	earnings: "/reports/earnings/",
+	timeAllocation: "/reports/time-allocation/",
+	projectPerformance: "/reports/project-performance/",
+	clientAnalytics: "/reports/client-analytics/",
+	monthly: "/reports/monthly/",
+	export: "/reports/export/",
+};
+
+export const PRODUCTIVITY_API = {
+	summary: "/productivity/summary/",
+	weeklyTrend: "/productivity/weekly-trend/",
+	taskVariance: "/productivity/task-variance/",
+	onTimeRate: "/productivity/on-time-rate/",
+	utilization: "/productivity/utilization/",
+	rules: "/productivity/rules/",
+};
+
+export const CLIENT_TRUST_API = {
+	summary: "/client-trust/summary/",
+	clients: "/client-trust/clients/",
+	clientHistory: (clientId: string) => `/client-trust/clients/${clientId}/history/`,
+	recalculate: "/client-trust/recalculate/",
+	rules: "/client-trust/rules/",
+	alerts: "/client-trust/alerts/",
+};
