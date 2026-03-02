@@ -15,6 +15,40 @@ type ProjectPerf = { project: string; completion: number; profitability: number;
 
 const asRecord = (value: unknown): AnyRec => (value && typeof value === "object" && !Array.isArray(value) ? (value as AnyRec) : {});
 const asArray = <T = unknown>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+const firstArrayByKeys = (source: AnyRec, keys: string[]): AnyRec[] | undefined => {
+	for (const key of keys) {
+		if (Array.isArray(source[key])) return source[key] as AnyRec[];
+	}
+	return undefined;
+};
+const firstArrayValue = (source: AnyRec): AnyRec[] | undefined => {
+	for (const value of Object.values(source)) {
+		if (Array.isArray(value)) return value as AnyRec[];
+	}
+	return undefined;
+};
+const getRows = (value: unknown, preferredKeys: string[]): AnyRec[] => {
+	if (Array.isArray(value)) return value as AnyRec[];
+	const root = asRecord(value);
+	const nested = [root, asRecord(root.data), asRecord(root.result), asRecord(root.payload)];
+	for (const source of nested) {
+		const direct = firstArrayByKeys(source, preferredKeys);
+		if (direct) return direct;
+		const fallback = firstArrayByKeys(source, ["results", "items", "data", "rows", "list"]);
+		if (fallback) return fallback;
+		const anyArray = firstArrayValue(source);
+		if (anyArray) return anyArray;
+	}
+	return [];
+};
+const getContextObject = (value: unknown): AnyRec => {
+	if (Array.isArray(value)) return {};
+	const root = asRecord(value);
+	if (Object.keys(root).length === 0) return {};
+	if (Array.isArray(root.data) || Array.isArray(root.results) || Array.isArray(root.items)) return root;
+	const nested = asRecord(root.data);
+	return Object.keys(nested).length ? nested : root;
+};
 
 const toNumber = (value: unknown, fallback = 0) => {
 	const parsed = Number(value);
@@ -41,11 +75,11 @@ const dateInput = (date: Date) => date.toISOString().slice(0, 10);
 export default function ReportingPage() {
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
-	const [earningsRes, setEarningsRes] = useState<AnyRec>({});
-	const [allocationRes, setAllocationRes] = useState<AnyRec>({});
-	const [projectRes, setProjectRes] = useState<AnyRec>({});
-	const [clientRes, setClientRes] = useState<AnyRec>({});
-	const [monthlyRes, setMonthlyRes] = useState<AnyRec>({});
+	const [earningsRes, setEarningsRes] = useState<unknown>({});
+	const [allocationRes, setAllocationRes] = useState<unknown>({});
+	const [projectRes, setProjectRes] = useState<unknown>({});
+	const [clientRes, setClientRes] = useState<unknown>({});
+	const [monthlyRes, setMonthlyRes] = useState<unknown>({});
 
 	const [exportReportType, setExportReportType] = useState<ReportExportPayload["report_type"]>("earnings");
 	const [exportPeriodType, setExportPeriodType] = useState<ReportExportPayload["period_type"]>("monthly");
@@ -65,11 +99,11 @@ export default function ReportingPage() {
 				reportService.getClientAnalytics(),
 				reportService.getMonthly(),
 			]);
-			setEarningsRes(asRecord(earnings));
-			setAllocationRes(asRecord(allocation));
-			setProjectRes(asRecord(projectPerformance));
-			setClientRes(asRecord(clientAnalytics));
-			setMonthlyRes(asRecord(monthly));
+			setEarningsRes(earnings);
+			setAllocationRes(allocation);
+			setProjectRes(projectPerformance);
+			setClientRes(clientAnalytics);
+			setMonthlyRes(monthly);
 		} catch (error: any) {
 			const message = error?.response?.data?.message || error?.response?.data?.detail || error?.message || "Failed to load reports.";
 			toast.error(message);
@@ -84,27 +118,29 @@ export default function ReportingPage() {
 	}, [loadReports]);
 
 	const monthlyEarnings = useMemo(() => {
-		const chart = asRecord(pick(monthlyRes, ["chart"], {}));
-		const values = asArray<number>(pick(chart, ["values", "data"], pick(monthlyRes, ["series", "earnings", "monthly_earnings"], []))).map((v) =>
+		const root = getContextObject(monthlyRes);
+		const chart = asRecord(pick(root, ["chart"], {}));
+		const values = asArray<number>(pick(chart, ["values", "data"], pick(root, ["series", "earnings", "monthly_earnings"], []))).map((v) =>
 			toNumber(v, 0),
 		);
 		if (values.length) return values;
-		const points = asArray<AnyRec>(pick(monthlyRes, ["items", "data", "trend"], []));
+		const points = getRows(monthlyRes, ["trend", "monthly", "monthly_trend", "items", "data"]);
 		if (points.length) return points.map((row) => toNumber(pick(row, ["value", "amount", "earnings"], 0), 0));
 		return [0, 0, 0, 0, 0, 0];
 	}, [monthlyRes]);
 
 	const monthlyCategories = useMemo(() => {
-		const chart = asRecord(pick(monthlyRes, ["chart"], {}));
-		const categories = asArray<string>(pick(chart, ["categories", "labels"], pick(monthlyRes, ["categories", "labels"], [])));
+		const root = getContextObject(monthlyRes);
+		const chart = asRecord(pick(root, ["chart"], {}));
+		const categories = asArray<string>(pick(chart, ["categories", "labels"], pick(root, ["categories", "labels"], [])));
 		if (categories.length) return categories;
-		const points = asArray<AnyRec>(pick(monthlyRes, ["items", "data", "trend"], []));
+		const points = getRows(monthlyRes, ["trend", "monthly", "monthly_trend", "items", "data"]);
 		if (points.length) return points.map((row, idx) => String(pick(row, ["label", "month", "period"], `P${idx + 1}`)));
 		return ["Sep", "Oct", "Nov", "Dec", "Jan", "Feb"];
 	}, [monthlyRes]);
 
 	const clientEarnings = useMemo(() => {
-		const rows = asArray<AnyRec>(pick(clientRes, ["clients", "items", "data", "client_analytics"], []));
+		const rows = getRows(clientRes, ["clients", "client_analytics", "top_clients", "items", "data"]);
 		const mapped = rows.map((row, idx) => {
 			const amount = toNumber(pick(row, ["amount", "revenue", "earnings"], 0), 0);
 			return {
@@ -121,25 +157,27 @@ export default function ReportingPage() {
 	}, [clientRes]);
 
 	const timeAllocation = useMemo(() => {
-		const rows = asArray<AnyRec>(pick(allocationRes, ["allocation", "items", "data", "time_allocation"], []));
+		const rows = getRows(allocationRes, ["allocation", "time_allocation", "breakdown", "items", "data"]);
 		if (rows.length) {
 			return rows.map((row) => toNumber(pick(row, ["value", "percent", "percentage", "hours"], 0), 0));
 		}
-		const direct = asArray<number>(pick(allocationRes, ["values", "series"], []));
+		const root = getContextObject(allocationRes);
+		const direct = asArray<number>(pick(root, ["values", "series"], []));
 		if (direct.length) return direct.map((v) => toNumber(v, 0));
 		return [100];
 	}, [allocationRes]);
 
 	const timeAllocationLabels = useMemo(() => {
-		const rows = asArray<AnyRec>(pick(allocationRes, ["allocation", "items", "data", "time_allocation"], []));
+		const rows = getRows(allocationRes, ["allocation", "time_allocation", "breakdown", "items", "data"]);
 		if (rows.length) return rows.map((row, idx) => String(pick(row, ["label", "name", "category"], `Category ${idx + 1}`)));
-		const labels = asArray<string>(pick(allocationRes, ["labels", "categories"], []));
+		const root = getContextObject(allocationRes);
+		const labels = asArray<string>(pick(root, ["labels", "categories"], []));
 		if (labels.length) return labels;
 		return ["All"];
 	}, [allocationRes]);
 
 	const projectPerformance = useMemo(() => {
-		const rows = asArray<AnyRec>(pick(projectRes, ["projects", "items", "data", "project_performance"], []));
+		const rows = getRows(projectRes, ["projects", "project_performance", "items", "data"]);
 		return rows.map((row, idx) => ({
 			project: String(pick(row, ["project", "name", "project_name"], `Project ${idx + 1}`)),
 			completion: toNumber(pick(row, ["completion", "progress", "completion_percent"], 0), 0),
@@ -149,8 +187,11 @@ export default function ReportingPage() {
 	}, [projectRes]);
 
 	const totalAmount = useMemo(() => {
-		const earningsTotal = toNumber(pick(earningsRes, ["total_earnings", "total", "amount"], NaN), NaN);
+		const root = getContextObject(earningsRes);
+		const earningsTotal = toNumber(pick(root, ["total_earnings", "total", "amount"], NaN), NaN);
 		if (Number.isFinite(earningsTotal)) return earningsTotal;
+		const rows = getRows(earningsRes, ["items", "data", "earnings", "series", "trend"]);
+		if (rows.length) return rows.reduce((sum, row) => sum + toNumber(pick(row, ["amount", "value", "earnings"], 0), 0), 0);
 		return monthlyEarnings.reduce((a, b) => a + b, 0);
 	}, [earningsRes, monthlyEarnings]);
 

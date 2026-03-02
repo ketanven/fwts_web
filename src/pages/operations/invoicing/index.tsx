@@ -335,10 +335,39 @@ export default function InvoicingPage() {
 			const data = await invoiceService.getInvoicePdf(selectedInvoiceId);
 			if (typeof window === "undefined") return;
 			if (data instanceof Blob) {
+				if ((data.type || "").includes("application/json")) {
+					const text = await data.text();
+					let parsed: any = {};
+					try {
+						parsed = JSON.parse(text);
+					} catch {
+						parsed = {};
+					}
+					const wrapped = parsed?.data && typeof parsed.data === "object" ? parsed.data : parsed;
+					const url = String(wrapped?.url || wrapped?.file_url || wrapped?.pdf_url || "");
+					if (url) {
+						window.open(url, "_blank", "noopener,noreferrer");
+						toast.success("PDF opened.");
+						return;
+					}
+					const message = String(wrapped?.message || wrapped?.detail || "").trim();
+					if (message) {
+						toast.error(message);
+						return;
+					}
+					toast.error("PDF API returned JSON instead of a file.");
+					return;
+				}
+
 				const blobUrl = URL.createObjectURL(data);
-				window.open(blobUrl, "_blank", "noopener,noreferrer");
+				const link = document.createElement("a");
+				link.href = blobUrl;
+				link.download = `${selectedInvoice?.invoiceNumber || selectedInvoiceId}.pdf`;
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
 				setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-				toast.success("PDF opened.");
+				toast.success("PDF downloaded.");
 				return;
 			}
 			const url = String((data as any)?.url || (data as any)?.file_url || "");

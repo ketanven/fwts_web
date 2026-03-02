@@ -29,6 +29,39 @@ const allocationColors = ["#22c55e", "#f59e0b", "#6366f1", "#ec4899", "#0ea5e9",
 
 const asRecord = (value: unknown): AnalysisData => (value && typeof value === "object" && !Array.isArray(value) ? (value as AnalysisData) : {});
 const asArray = <T = unknown>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+const firstArrayByKeys = (source: AnalysisData, keys: string[]): AnalysisData[] | undefined => {
+	for (const key of keys) {
+		if (Array.isArray(source[key])) return source[key] as AnalysisData[];
+	}
+	return undefined;
+};
+const firstArrayValue = (source: AnalysisData): AnalysisData[] | undefined => {
+	for (const value of Object.values(source)) {
+		if (Array.isArray(value)) return value as AnalysisData[];
+	}
+	return undefined;
+};
+const getRows = (value: unknown, preferredKeys: string[]): AnalysisData[] => {
+	if (Array.isArray(value)) return value as AnalysisData[];
+	const root = asRecord(value);
+	const nested = [root, asRecord(root.data), asRecord(root.result), asRecord(root.payload)];
+	for (const source of nested) {
+		const direct = firstArrayByKeys(source, preferredKeys);
+		if (direct) return direct;
+		const fallback = firstArrayByKeys(source, ["results", "items", "data", "rows", "list"]);
+		if (fallback) return fallback;
+		const anyArray = firstArrayValue(source);
+		if (anyArray) return anyArray;
+	}
+	return [];
+};
+const getContextObject = (value: unknown): AnalysisData => {
+	if (Array.isArray(value)) return {};
+	const root = asRecord(value);
+	const nested = asRecord(root.data);
+	if (Object.keys(nested).length > 0 && !Array.isArray(root.data)) return nested;
+	return root;
+};
 
 const toNumber = (value: unknown, fallback = 0) => {
 	const parsed = Number(value);
@@ -81,14 +114,14 @@ export default function Analysis() {
 	const [timeType, setTimeType] = useState<TimeType>("day");
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
-	const [summary, setSummary] = useState<AnalysisData>({});
-	const [webAnalytics, setWebAnalytics] = useState<AnalysisData>({});
-	const [earningsTrend, setEarningsTrend] = useState<AnalysisData>({});
-	const [timeAllocation, setTimeAllocation] = useState<AnalysisData>({});
-	const [topClients, setTopClients] = useState<AnalysisData>({});
-	const [taskAccuracy, setTaskAccuracy] = useState<AnalysisData>({});
-	const [invoiceHealth, setInvoiceHealth] = useState<AnalysisData>({});
-	const [exportData, setExportData] = useState<AnalysisData>({});
+	const [summary, setSummary] = useState<unknown>({});
+	const [webAnalytics, setWebAnalytics] = useState<unknown>({});
+	const [earningsTrend, setEarningsTrend] = useState<unknown>({});
+	const [timeAllocation, setTimeAllocation] = useState<unknown>({});
+	const [topClients, setTopClients] = useState<unknown>({});
+	const [taskAccuracy, setTaskAccuracy] = useState<unknown>({});
+	const [invoiceHealth, setInvoiceHealth] = useState<unknown>({});
+	const [exportData, setExportData] = useState<unknown>({});
 
 	const days = timeType === "day" ? 1 : timeType === "week" ? 7 : 30;
 	const period = timeType === "month" ? "monthly" : "weekly";
@@ -96,7 +129,7 @@ export default function Analysis() {
 	const loadAnalysis = useCallback(async () => {
 		try {
 			setRefreshing(true);
-			const [summaryRes, webRes, earningsRes, allocationRes, clientsRes, accuracyRes, invoiceRes, exportRes] = await Promise.all([
+				const [summaryRes, webRes, earningsRes, allocationRes, clientsRes, accuracyRes, invoiceRes, exportRes] = await Promise.all([
 				analysisService.getSummary(),
 				analysisService.getWebAnalytics(days),
 				analysisService.getEarningsTrend(period),
@@ -105,15 +138,15 @@ export default function Analysis() {
 				analysisService.getTaskAccuracy(),
 				analysisService.getInvoiceHealth(),
 				analysisService.getExport(),
-			]);
-			setSummary(asRecord(summaryRes));
-			setWebAnalytics(asRecord(webRes));
-			setEarningsTrend(asRecord(earningsRes));
-			setTimeAllocation(asRecord(allocationRes));
-			setTopClients(asRecord(clientsRes));
-			setTaskAccuracy(asRecord(accuracyRes));
-			setInvoiceHealth(asRecord(invoiceRes));
-			setExportData(asRecord(exportRes));
+				]);
+				setSummary(summaryRes);
+				setWebAnalytics(webRes);
+				setEarningsTrend(earningsRes);
+				setTimeAllocation(allocationRes);
+				setTopClients(clientsRes);
+				setTaskAccuracy(accuracyRes);
+				setInvoiceHealth(invoiceRes);
+				setExportData(exportRes);
 		} catch (error: any) {
 			const message = error?.response?.data?.message || error?.response?.data?.detail || error?.message || "Failed to load analysis data.";
 			toast.error(message);
@@ -128,17 +161,18 @@ export default function Analysis() {
 	}, [loadAnalysis]);
 
 	const summaryData = useMemo(() => {
-		const billable = pickNumber(summary, ["billable_hours", "billableHours", "total_billable_hours"], 0);
-		const billableChange = pickNumber(summary, ["billable_hours_change", "billableHoursChange"], 0);
-		const billableTarget = pickNumber(summary, ["billable_target_progress", "billableTargetProgress", "target_progress"], 0);
-		const earnings = pickNumber(summary, ["total_earnings", "earnings", "revenue"], 0);
-		const earningsChange = pickNumber(summary, ["earnings_change", "revenue_change", "earningsGrowth"], 0);
-		const utilization = pickNumber(summary, ["utilization_rate", "utilization", "utilizationRate"], 0);
-		const utilizationChange = pickNumber(summary, ["utilization_change", "utilizationChange"], 0);
-		const productivity = pickNumber(summary, ["productivity_score", "productivity", "productivityScore"], 0);
-		const productivityChange = pickNumber(summary, ["productivity_change", "productivityChange"], 0);
-		const onTimeRate = pickNumber(summary, ["on_time_rate", "onTimeRate", "delivery_rate"], 0);
-		const onTimeRateChange = pickNumber(summary, ["on_time_rate_change", "onTimeRateChange"], 0);
+		const root = getContextObject(summary);
+		const billable = pickNumber(root, ["billable_hours", "billableHours", "total_billable_hours"], 0);
+		const billableChange = pickNumber(root, ["billable_hours_change", "billableHoursChange"], 0);
+		const billableTarget = pickNumber(root, ["billable_target_progress", "billableTargetProgress", "target_progress"], 0);
+		const earnings = pickNumber(root, ["total_earnings", "earnings", "revenue"], 0);
+		const earningsChange = pickNumber(root, ["earnings_change", "revenue_change", "earningsGrowth"], 0);
+		const utilization = pickNumber(root, ["utilization_rate", "utilization", "utilizationRate"], 0);
+		const utilizationChange = pickNumber(root, ["utilization_change", "utilizationChange"], 0);
+		const productivity = pickNumber(root, ["productivity_score", "productivity", "productivityScore"], 0);
+		const productivityChange = pickNumber(root, ["productivity_change", "productivityChange"], 0);
+		const onTimeRate = pickNumber(root, ["on_time_rate", "onTimeRate", "delivery_rate"], 0);
+		const onTimeRateChange = pickNumber(root, ["on_time_rate_change", "onTimeRateChange"], 0);
 
 		return {
 			billable,
@@ -156,10 +190,11 @@ export default function Analysis() {
 	}, [summary]);
 
 	const webData = useMemo(() => {
-		const chart = asRecord(pick(webAnalytics, ["chart"], {}));
-		const categories = asArray<string>(pick(chart, ["categories"], pick(webAnalytics, ["categories", "labels"], [])));
-		const rawSeries = asArray<AnalysisData>(pick(chart, ["series"], pick(webAnalytics, ["series"], [])));
-		const series = rawSeries
+		const root = getContextObject(webAnalytics);
+		const chart = asRecord(pick(root, ["chart"], {}));
+		const categories = asArray<string>(pick(chart, ["categories"], pick(root, ["categories", "labels"], [])));
+		const rawSeries = asArray<AnalysisData>(pick(chart, ["series"], pick(root, ["series"], [])));
+		let series = rawSeries
 			.map((item, idx) => {
 				const row = asRecord(item);
 				return {
@@ -168,21 +203,36 @@ export default function Analysis() {
 				};
 			})
 			.filter((row) => row.data.length > 0);
+		let computedCategories = categories;
+		const rows = getRows(webAnalytics, ["data", "trend", "points", "items"]);
+		if (!series.length && rows.length) {
+			series = [
+				{
+					name: "Hours",
+					data: rows.map((row) => toNumber(pick(asRecord(row), ["hours", "value", "amount"], 0), 0)),
+				},
+			];
+			computedCategories = rows.map((row, idx) => pickString(asRecord(row), ["date", "label", "period", "name"], `P${idx + 1}`));
+		}
+		const primarySeries = series[0]?.data || [];
+		const fallbackTotal = primarySeries.reduce((sum, value) => sum + toNumber(value, 0), 0);
+		const fallbackAvg = primarySeries.length ? fallbackTotal / primarySeries.length : 0;
 
 		return {
-			pageViews: pickNumber(webAnalytics, ["page_views", "pageViews", "total_page_views"], 0),
-			pageViewsChange: pickNumber(webAnalytics, ["page_views_change", "pageViewsChange"], 0),
-			avgTimeSeconds: pickNumber(webAnalytics, ["avg_time_seconds", "avg_time", "avgTimeSeconds"], 0),
-			avgTimeChange: pickNumber(webAnalytics, ["avg_time_change", "avgTimeChange"], 0),
-			categories,
+			pageViews: pickNumber(root, ["page_views", "pageViews", "total_page_views"], fallbackTotal),
+			pageViewsChange: pickNumber(root, ["page_views_change", "pageViewsChange"], 0),
+			avgTimeSeconds: pickNumber(root, ["avg_time_seconds", "avg_time", "avgTimeSeconds"], fallbackAvg * 3600),
+			avgTimeChange: pickNumber(root, ["avg_time_change", "avgTimeChange"], 0),
+			categories: computedCategories,
 			series: series.length ? series : [{ name: "Traffic", data: [0, 0, 0, 0, 0, 0, 0] }],
 		};
 	}, [webAnalytics]);
 
 	const earningsData = useMemo(() => {
-		const chart = asRecord(pick(earningsTrend, ["chart"], {}));
-		const categories = asArray<string>(pick(chart, ["categories"], pick(earningsTrend, ["categories", "labels"], [])));
-		const seriesRows = asArray<AnalysisData>(pick(chart, ["series"], pick(earningsTrend, ["series"], [])));
+		const root = getContextObject(earningsTrend);
+		const chart = asRecord(pick(root, ["chart"], {}));
+		const categories = asArray<string>(pick(chart, ["categories"], pick(root, ["categories", "labels"], [])));
+		const seriesRows = asArray<AnalysisData>(pick(chart, ["series"], pick(root, ["series"], [])));
 
 		if (seriesRows.length > 0) {
 			const first = asRecord(seriesRows[0]);
@@ -193,10 +243,10 @@ export default function Analysis() {
 			};
 		}
 
-		const list = asArray<AnalysisData>(pick(earningsTrend, ["trend", "items", "data", "points"], []));
+		const list = getRows(earningsTrend, ["trend", "points", "items", "data"]);
 		if (list.length > 0) {
 			return {
-				series: list.map((row) => pickNumber(asRecord(row), ["value", "amount", "earnings"], 0)),
+				series: list.map((row) => pickNumber(asRecord(row), ["value", "amount", "earnings", "hours"], 0)),
 				categories: list.map((row, idx) => pickString(asRecord(row), ["label", "period", "date", "name"], `P${idx + 1}`)),
 			};
 		}
@@ -208,8 +258,9 @@ export default function Analysis() {
 	}, [earningsTrend]);
 
 	const allocationData = useMemo(() => {
-		const list = asArray<AnalysisData>(pick(timeAllocation, ["allocation", "items", "data"], []));
-		const rows: ParsedAllocation[] = list
+		const root = getContextObject(timeAllocation);
+		const list = getRows(timeAllocation, ["allocation", "time_allocation", "items", "data"]);
+		let rows: ParsedAllocation[] = list
 			.map((row, idx) => {
 				const item = asRecord(row);
 				return {
@@ -219,11 +270,22 @@ export default function Analysis() {
 				};
 			})
 			.filter((item) => item.value > 0);
+		if (!rows.length) {
+			const objectRows = Object.entries(root)
+				.filter(([, value]) => Number.isFinite(Number(value)))
+				.map(([key, value], idx) => ({
+					label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+					value: toNumber(value, 0),
+					color: allocationColors[idx % allocationColors.length],
+				}))
+				.filter((item) => item.value > 0);
+			rows = objectRows;
+		}
 		return rows.length ? rows : [{ label: "No Data", value: 100, color: "#94a3b8" }];
 	}, [timeAllocation]);
 
 	const clientRows = useMemo(() => {
-		const list = asArray<AnalysisData>(pick(topClients, ["clients", "items", "data", "top_clients"], []));
+		const list = getRows(topClients, ["clients", "top_clients", "items", "data"]);
 		return list.map((row, idx) => {
 			const item = asRecord(row);
 			return {
@@ -236,23 +298,26 @@ export default function Analysis() {
 	}, [topClients]);
 
 	const taskRows = useMemo(() => {
-		const list = asArray<AnalysisData>(pick(taskAccuracy, ["tasks", "items", "data", "task_accuracy"], []));
+		const list = getRows(taskAccuracy, ["tasks", "task_accuracy", "items", "data"]);
 		return list.map((row, idx) => {
 			const item = asRecord(row);
+			const variance = pickNumber(item, ["variance_hours", "variance"], 0);
+			const statusFallback = variance > 0 ? "Delayed" : "On Time";
 			return {
 				task: pickString(item, ["task", "title", "name"], `Task ${idx + 1}`),
 				estimated: pickNumber(item, ["estimated", "estimated_hours", "estimate"], 0),
 				actual: pickNumber(item, ["actual", "actual_hours", "actual_spent"], 0),
-				status: pickString(item, ["status", "accuracy_status"], "On Time"),
+				status: pickString(item, ["status", "accuracy_status"], statusFallback),
 			} as ParsedTask;
 		});
 	}, [taskAccuracy]);
 
 	const invoiceData = useMemo(() => {
+		const root = getContextObject(invoiceHealth);
 		return {
-			paid: pickNumber(invoiceHealth, ["paid", "paid_count", "paid_invoices"], 0),
-			pending: pickNumber(invoiceHealth, ["pending", "pending_count", "pending_invoices"], 0),
-			overdue: pickNumber(invoiceHealth, ["overdue", "overdue_count", "overdue_invoices"], 0),
+			paid: pickNumber(root, ["paid", "paid_count", "paid_invoices"], 0),
+			pending: pickNumber(root, ["pending", "pending_count", "pending_invoices"], 0),
+			overdue: pickNumber(root, ["overdue", "overdue_count", "overdue_invoices"], 0),
 		};
 	}, [invoiceHealth]);
 
@@ -289,6 +354,13 @@ export default function Analysis() {
 
 	const trustVariant = (value: string) => {
 		const normalized = value.toLowerCase();
+		const numeric = Number(value);
+		if (Number.isFinite(numeric)) {
+			if (numeric >= 75) return "success";
+			if (numeric >= 50) return "info";
+			if (numeric >= 25) return "warning";
+			return "error";
+		}
 		if (normalized.includes("trust") || normalized.includes("good")) return "success";
 		if (normalized.includes("moderate") || normalized.includes("info")) return "info";
 		if (normalized.includes("watch") || normalized.includes("warn") || normalized.includes("pending")) return "warning";
@@ -300,8 +372,9 @@ export default function Analysis() {
 		return ((actual - estimated) / estimated) * 100;
 	};
 
-	const exportUrl = pickString(exportData, ["url", "file_url", "download_url"], "");
-	const exportLabel = pickString(exportData, ["label", "name", "export_name"], "Export Ready");
+	const exportRoot = getContextObject(exportData);
+	const exportUrl = pickString(exportRoot, ["url", "file_url", "download_url"], "");
+	const exportLabel = pickString(exportRoot, ["label", "name", "export_name"], "Export Ready");
 
 	if (loading) {
 		return (

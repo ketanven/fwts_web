@@ -15,6 +15,27 @@ import type { Project, Task } from "#/entity";
 type TimerStatus = "idle" | "running" | "paused" | "break";
 type OverviewData = Record<string, unknown>;
 const ACTIVE_TIMER_STORAGE_KEY = "workbench-active-timer-v1";
+const LOCAL_TIMER_SESSION_STORAGE_KEY = "workbench-local-timer-session-v1";
+const LOCAL_WORKBENCH_UI_STATE_STORAGE_KEY = "workbench-ui-state-v1";
+const MAX_DAILY_TIMER_SECONDS = 24 * 60 * 60;
+
+type LocalTimerSession = {
+	status: TimerStatus;
+	projectId: string;
+	taskId: string;
+	dayKey: string;
+	updatedAt: number;
+};
+
+type LocalWorkbenchUiState = {
+	projectId?: string;
+	taskId?: string;
+	breakReason?: string;
+	stopNote?: string;
+	manualHours?: string;
+	manualMinutes?: string;
+	manualNote?: string;
+};
 
 const formatDuration = (seconds: number) => {
 	const safe = Math.max(0, Math.floor(seconds));
@@ -36,6 +57,13 @@ const formatCurrency = (value: number, currency = "USD") => {
 };
 
 const dateInput = (date: Date) => date.toISOString().slice(0, 10);
+const localDayKey = (timestamp = Date.now()) => {
+	const d = new Date(timestamp);
+	const yyyy = d.getFullYear();
+	const mm = String(d.getMonth() + 1).padStart(2, "0");
+	const dd = String(d.getDate()).padStart(2, "0");
+	return `${yyyy}-${mm}-${dd}`;
+};
 
 const daysAgo = (days: number) => {
 	const now = new Date();
@@ -134,27 +162,72 @@ const getBreakSecondsBase = (timer: WorkbenchActiveTimer | null, fetchedAt: numb
 	return Math.max(0, Math.floor((fetchedAt - breakStartedAt) / 1000));
 };
 
+const loadLocalTimerSession = (): LocalTimerSession | null => {
+	if (typeof window === "undefined") return null;
+	try {
+		const raw = window.localStorage.getItem(LOCAL_TIMER_SESSION_STORAGE_KEY);
+		if (!raw) return null;
+		const parsed = JSON.parse(raw) as LocalTimerSession;
+		if (!parsed || typeof parsed !== "object") return null;
+		if (!parsed.projectId || !parsed.taskId || !parsed.dayKey || !parsed.status) return null;
+		return parsed;
+	} catch {
+		return null;
+	}
+};
+
+const loadWorkbenchUiState = (): LocalWorkbenchUiState => {
+	if (typeof window === "undefined") return {};
+	try {
+		const raw = window.localStorage.getItem(LOCAL_WORKBENCH_UI_STATE_STORAGE_KEY);
+		if (!raw) return {};
+		const parsed = JSON.parse(raw) as LocalWorkbenchUiState;
+		return parsed && typeof parsed === "object" ? parsed : {};
+	} catch {
+		return {};
+	}
+};
+
+const shouldTrustRemoteActiveTimer = (active: WorkbenchActiveTimer | null, localSession: LocalTimerSession | null, nowTs: number) => {
+	if (!active) return false;
+	if (normalizeTimerStatus(active) === "idle") return false;
+	if (!localSession) return false;
+	if (localSession.dayKey !== localDayKey(nowTs)) return false;
+	const remoteProjectId = getActiveProjectId(active);
+	const remoteTaskId = getActiveTaskId(active);
+	return remoteProjectId === localSession.projectId && remoteTaskId === localSession.taskId;
+};
+
 export default function Workbench() {
+	const uiState = useMemo(() => loadWorkbenchUiState(), []);
+	const initialLocalTimerSession = useMemo(() => loadLocalTimerSession(), []);
 	const [overview, setOverview] = useState<OverviewData>({});
 	const [projects, setProjects] = useState<Project[]>([]);
 	const [tasksByProject, setTasksByProject] = useState<Record<string, Task[]>>({});
-	const [selectedProjectId, setSelectedProjectId] = useState("");
-	const [selectedTaskId, setSelectedTaskId] = useState("");
+	const [selectedProjectId, setSelectedProjectId] = useState(uiState.projectId || "");
+	const [selectedTaskId, setSelectedTaskId] = useState(uiState.taskId || "");
 	const [activeTimer, setActiveTimer] = useState<WorkbenchActiveTimer | null>(() => loadCachedActiveTimer()?.timer || null);
 	const [activeFetchedAt, setActiveFetchedAt] = useState<number>(() => loadCachedActiveTimer()?.fetchedAt || Date.now());
+	const [localTimerSession, setLocalTimerSession] = useState<LocalTimerSession | null>(initialLocalTimerSession);
 	const [timeEntries, setTimeEntries] = useState<WorkbenchTimeEntry[]>([]);
 	const [entryNoteDrafts, setEntryNoteDrafts] = useState<Record<number, string>>({});
 	const [loading, setLoading] = useState(true);
 	const [tasksLoading, setTasksLoading] = useState(false);
 	const [actionLoading, setActionLoading] = useState(false);
 	const [syncLoading, setSyncLoading] = useState(false);
-	const [manualHours, setManualHours] = useState("0");
-	const [manualMinutes, setManualMinutes] = useState("0");
-	const [manualNote, setManualNote] = useState("");
-	const [stopNote, setStopNote] = useState("");
-	const [breakReason, setBreakReason] = useState("");
+	const [manualHours, setManualHours] = useState(uiState.manualHours || "0");
+	const [manualMinutes, setManualMinutes] = useState(uiState.manualMinutes || "0");
+	const [manualNote, setManualNote] = useState(uiState.manualNote || "");
+	const [stopNote, setStopNote] = useState(uiState.stopNote || "");
+	const [breakReason, setBreakReason] = useState(uiState.breakReason || "");
 	const [now, setNow] = useState(Date.now());
 	const tasksByProjectRef = useRef<Record<string, Task[]>>({});
+	const localTimerSessionRef = useRef<LocalTimerSession | null>(initialLocalTimerSession);
+
+	const applyLocalTimerSession = useCallback((next: LocalTimerSession | null) => {
+		localTimerSessionRef.current = next;
+		setLocalTimerSession(next);
+	}, []);
 
 	const selectableProjects = useMemo(() => {
 		return projects.filter((project) => Boolean(getProjectId(project)));
@@ -220,16 +293,14 @@ export default function Workbench() {
 
 	const refreshActiveTimer = useCallback(async () => {
 		const active = await workbenchService.getActiveTimer();
-		if (active) {
+		if (active && shouldTrustRemoteActiveTimer(active, localTimerSessionRef.current, Date.now())) {
 			setActiveTimer(active);
 			setActiveFetchedAt(Date.now());
 			return active;
 		}
-		if (normalizeTimerStatus(activeTimer) === "idle") {
-			setActiveTimer(null);
-		}
-		return active || null;
-	}, [activeTimer]);
+		setActiveTimer(null);
+		return null;
+	}, []);
 
 	const reloadAll = useCallback(async () => {
 		setLoading(true);
@@ -242,9 +313,9 @@ export default function Workbench() {
 
 			setOverview(overviewData || {});
 			setProjects(fetchedProjects || []);
-			const effectiveActive = active || (normalizeTimerStatus(activeTimer) !== "idle" ? activeTimer : null);
+			const effectiveActive = shouldTrustRemoteActiveTimer(active, localTimerSessionRef.current, Date.now()) ? active : null;
 			setActiveTimer(effectiveActive);
-			if (active) {
+			if (effectiveActive) {
 				setActiveFetchedAt(Date.now());
 			}
 
@@ -269,7 +340,7 @@ export default function Workbench() {
 		} finally {
 			setLoading(false);
 		}
-	}, [activeTimer, loadTasksForProject, loadTimeEntries]);
+	}, [loadTasksForProject, loadTimeEntries]);
 
 	useEffect(() => {
 		reloadAll();
@@ -315,10 +386,50 @@ export default function Workbench() {
 		);
 	}, [activeFetchedAt, activeTimer]);
 
-	const runAction = async (action: () => Promise<unknown>, successMessage: string) => {
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		if (!localTimerSession) {
+			window.localStorage.removeItem(LOCAL_TIMER_SESSION_STORAGE_KEY);
+			return;
+		}
+		window.localStorage.setItem(LOCAL_TIMER_SESSION_STORAGE_KEY, JSON.stringify(localTimerSession));
+	}, [localTimerSession]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const payload: LocalWorkbenchUiState = {
+			projectId: selectedProjectId,
+			taskId: selectedTaskId,
+			breakReason,
+			stopNote,
+			manualHours,
+			manualMinutes,
+			manualNote,
+		};
+		window.localStorage.setItem(LOCAL_WORKBENCH_UI_STATE_STORAGE_KEY, JSON.stringify(payload));
+	}, [breakReason, manualHours, manualMinutes, manualNote, selectedProjectId, selectedTaskId, stopNote]);
+
+	useEffect(() => {
+		const session = localTimerSessionRef.current;
+		if (!session) return;
+		const todayKey = localDayKey(now);
+		if (session.dayKey === todayKey) return;
+
+		applyLocalTimerSession(null);
+		setActiveTimer(null);
+		setActiveFetchedAt(now);
+		if (typeof window !== "undefined") {
+			window.localStorage.removeItem(ACTIVE_TIMER_STORAGE_KEY);
+		}
+		workbenchService.stopTimer({ note: "Auto-stopped at local midnight" }).catch(() => {});
+		toast.info("Timer reset at midnight. Click Start to begin a new day.");
+	}, [applyLocalTimerSession, now]);
+
+	const runAction = async (action: () => Promise<unknown>, successMessage: string, onSuccess?: () => void) => {
 		try {
 			setActionLoading(true);
 			await action();
+			onSuccess?.();
 			await Promise.all([refreshOverview(), refreshActiveTimer(), loadTimeEntries()]);
 			toast.success(successMessage);
 		} catch (error: any) {
@@ -339,6 +450,13 @@ export default function Workbench() {
 
 	const handleStartTask = async (taskId: string) => {
 		if (!selectedProjectId || !taskId) return;
+		const nextSession: LocalTimerSession = {
+			status: "running",
+			projectId: selectedProjectId,
+			taskId,
+			dayKey: localDayKey(),
+			updatedAt: Date.now(),
+		};
 		await runAction(
 			() =>
 				workbenchService.startTimer({
@@ -349,27 +467,46 @@ export default function Workbench() {
 					local_session_uuid: `web-${Date.now()}`,
 				}),
 			"Timer started.",
+			() => applyLocalTimerSession(nextSession),
 		);
 	};
 
 	const handlePause = async () => {
-		await runAction(() => workbenchService.pauseTimer(), "Timer paused.");
+		await runAction(() => workbenchService.pauseTimer(), "Timer paused.", () => {
+			const current = localTimerSessionRef.current;
+			if (!current) return;
+			applyLocalTimerSession({ ...current, status: "paused", updatedAt: Date.now() });
+		});
 	};
 
 	const handleBreakStart = async () => {
-		await runAction(() => workbenchService.startBreak({ reason: breakReason || undefined }), "Break started.");
+		await runAction(() => workbenchService.startBreak({ reason: breakReason || undefined }), "Break started.", () => {
+			const current = localTimerSessionRef.current;
+			if (!current) return;
+			applyLocalTimerSession({ ...current, status: "break", updatedAt: Date.now() });
+		});
 	};
 
 	const handleResume = async () => {
 		if (timerStatus === "break") {
-			await runAction(() => workbenchService.stopBreak(), "Break stopped.");
+			await runAction(() => workbenchService.stopBreak(), "Break stopped.", () => {
+				const current = localTimerSessionRef.current;
+				if (!current) return;
+				applyLocalTimerSession({ ...current, status: "running", updatedAt: Date.now() });
+			});
 			return;
 		}
-		await runAction(() => workbenchService.resumeTimer(), "Timer resumed.");
+		await runAction(() => workbenchService.resumeTimer(), "Timer resumed.", () => {
+			const current = localTimerSessionRef.current;
+			if (!current) return;
+			applyLocalTimerSession({ ...current, status: "running", updatedAt: Date.now() });
+		});
 	};
 
 	const handleStop = async () => {
-		await runAction(() => workbenchService.stopTimer({ note: stopNote || undefined }), "Timer stopped.");
+		await runAction(() => workbenchService.stopTimer({ note: stopNote || undefined }), "Timer stopped.", () => {
+			applyLocalTimerSession(null);
+		});
 		setStopNote("");
 	};
 
@@ -480,8 +617,8 @@ export default function Workbench() {
 	const elapsedBase = getElapsedSecondsBase(activeTimer, activeFetchedAt);
 	const breakBase = getBreakSecondsBase(activeTimer, activeFetchedAt);
 	const liveDelta = Math.floor((now - activeFetchedAt) / 1000);
-	const activeTimerSeconds = timerStatus === "running" ? elapsedBase + Math.max(0, liveDelta) : elapsedBase;
-	const activeBreakSeconds = timerStatus === "break" ? breakBase + Math.max(0, liveDelta) : breakBase;
+	const activeTimerSeconds = Math.min(MAX_DAILY_TIMER_SECONDS, timerStatus === "running" ? elapsedBase + Math.max(0, liveDelta) : elapsedBase);
+	const activeBreakSeconds = Math.min(MAX_DAILY_TIMER_SECONDS, timerStatus === "break" ? breakBase + Math.max(0, liveDelta) : breakBase);
 
 	const entryDurationByTask = useMemo(() => {
 		return timeEntries.reduce<Record<string, number>>((acc, entry) => {
