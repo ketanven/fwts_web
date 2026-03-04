@@ -109,7 +109,7 @@
 			"management": "Management",
 			"operations": {
 				"index": "Operations",
-				"invoicing": "Automated Invoicing",
+				"invoicing": "Invoicing",
 				"reporting": "Reporting",
 				"invoice_control": "Invoice Numbering",
 				"productivity": "Productivity Score",

@@ -65,6 +65,17 @@ type CreateFromTimeEntriesPayload = {
 	currency?: string;
 };
 
+type GenerateInvoicePayload = {
+	client_id: string;
+	project_id?: string;
+	payout_details: {
+		bank_name: string;
+		account_name: string;
+		account_number: string;
+		swift_ifsc: string;
+	};
+};
+
 type MarkPaidPayload = {
 	payment_date?: string;
 	amount?: string;
@@ -201,6 +212,15 @@ const getInvoicePdf = (invoiceId: string) =>
 		headers: getAuthHeaders(),
 	});
 
+const generateInvoicePdf = (payload: GenerateInvoicePayload) =>
+	apiClient.request<Blob | Record<string, any>>({
+		url: INVOICE_API.generate,
+		method: "POST",
+		data: payload,
+		responseType: "blob",
+		headers: { "x-skip-error-toast": true, ...getAuthHeaders() },
+	});
+
 const listInvoiceVersions = async (invoiceId: string) => {
 	const data = await apiClient.get<any[] | PaginatedResponse<any> | { data?: any[] }>({
 		url: INVOICE_API.versions(invoiceId),
@@ -261,6 +281,7 @@ export default {
 	listInvoicePayments,
 	createInvoicePayment,
 	getInvoicePdf,
+	generateInvoicePdf,
 	listInvoiceVersions,
 	createInvoiceVersion,
 	getInvoiceVersion,
@@ -274,6 +295,7 @@ export type {
 	CreateFromTimeEntriesPayload,
 	CreatePaymentPayload,
 	CreateVersionPayload,
+	GenerateInvoicePayload,
 	InvoiceCreatePayload,
 	InvoiceUpdatePayload,
 	LineItemPayload,

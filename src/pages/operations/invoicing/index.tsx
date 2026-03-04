@@ -1,396 +1,163 @@
-import invoiceService, { type InvoiceCreatePayload, type ListInvoicesQuery } from "@/api/services/invoiceService";
-import { Chart, useChart } from "@/components/chart";
+import clientService from "@/api/services/clientService";
+import invoiceService from "@/api/services/invoiceService";
+import projectService from "@/api/services/projectService";
 import { Icon } from "@/components/icon";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
-import { Progress } from "@/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-type InvoiceRow = {
-	invoiceId: string;
-	invoiceNumber: string;
-	client: string;
-	clientId?: string;
-	projectId?: string;
-	type: string;
-	amount: number;
-	paid: number;
-	status: string;
-	dueDate: string;
-	issueDate: string;
-	currency: string;
-	notes: string;
-	raw: Record<string, any>;
+import type { Client, Project } from "#/entity";
+
+type GenerateResponse = Blob | Record<string, any>;
+
+const unwrapResponseData = (value: unknown) => {
+	if (!value || typeof value !== "object" || Array.isArray(value)) return {} as Record<string, any>;
+	const root = value as Record<string, any>;
+	if (root.data && typeof root.data === "object" && !Array.isArray(root.data)) return root.data as Record<string, any>;
+	return root;
 };
 
-const toNumber = (value: unknown, fallback = 0) => {
-	const parsed = Number(value);
-	return Number.isFinite(parsed) ? parsed : fallback;
+const sanitizeFileName = (value: string) => value.replace(/[^a-z0-9-]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase();
+
+const triggerDownload = (blob: Blob, fileName: string) => {
+	if (typeof window === "undefined") return;
+	const blobUrl = URL.createObjectURL(blob);
+	const link = document.createElement("a");
+	link.href = blobUrl;
+	link.download = fileName;
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+	setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
 };
 
-const asRecord = (value: unknown) => (value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, any>) : {});
+const downloadFromApiResponse = async (res: GenerateResponse, fileName: string) => {
+	if (res instanceof Blob) {
+		if ((res.type || "").includes("application/pdf") || (res.type || "").includes("application/octet-stream") || !res.type) {
+			triggerDownload(res, fileName);
+			return;
+		}
 
-const normalizeInvoice = (invoice: unknown): InvoiceRow => {
-	const row = asRecord(invoice);
-	const amount = toNumber(row.total_amount ?? row.amount ?? row.grand_total, 0);
-	const paid = toNumber(row.paid_amount ?? row.paid ?? row.collected_amount, 0);
-	const invoiceId = String(row.id ?? row.invoice_id ?? "");
-	const invoiceNumber = String(row.invoice_number ?? row.number ?? invoiceId ?? "-");
-	return {
-		invoiceId,
-		invoiceNumber,
-		client: String(row.client_name ?? row.client_display ?? row.client ?? "-"),
-		clientId: row.client ? String(row.client) : undefined,
-		projectId: row.project ? String(row.project) : undefined,
-		type: String(row.invoice_type ?? "hourly"),
-		amount,
-		paid,
-		status: String(row.status ?? "draft"),
-		dueDate: String(row.due_date ?? "-"),
-		issueDate: String(row.issue_date ?? row.created_at ?? ""),
-		currency: String(row.currency ?? "USD"),
-		notes: String(row.notes ?? ""),
-		raw: row,
-	};
-};
+		if ((res.type || "").includes("application/json")) {
+			const payload = unwrapResponseData(JSON.parse(await res.text()));
+			const fileUrl = String(payload.url || payload.file_url || payload.pdf_url || "").trim();
+			if (fileUrl && typeof window !== "undefined") {
+				window.open(fileUrl, "_blank", "noopener,noreferrer");
+				return;
+			}
+			throw new Error(String(payload.message || payload.detail || "Invoice PDF was not returned by API."));
+		}
 
-const statusVariant = (status: string) => {
-	const normalized = status.toLowerCase();
-	if (normalized === "paid") return "success";
-	if (normalized === "submitted" || normalized === "sent") return "info";
-	if (normalized === "draft") return "secondary";
-	if (normalized.includes("partial") || normalized === "pending") return "warning";
-	return "error";
-};
-
-const formatCurrency = (value: number, currency = "USD") => {
-	try {
-		return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 }).format(value);
-	} catch {
-		return `$${value.toFixed(2)}`;
+		triggerDownload(res, fileName);
+		return;
 	}
-};
 
-const dateInput = (date: Date) => date.toISOString().slice(0, 10);
+	const payload = unwrapResponseData(res);
+	const fileUrl = String(payload.url || payload.file_url || payload.pdf_url || "").trim();
+	if (fileUrl && typeof window !== "undefined") {
+		window.open(fileUrl, "_blank", "noopener,noreferrer");
+		return;
+	}
+
+	throw new Error(String(payload.message || payload.detail || "Invoice PDF was not returned by API."));
+};
 
 export default function InvoicingPage() {
-	const [stats, setStats] = useState<Record<string, any>>({});
-	const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
-	const [selectedInvoiceId, setSelectedInvoiceId] = useState("");
-	const [payments, setPayments] = useState<Record<string, any[]>>({});
-	const [statusFilter, setStatusFilter] = useState<string>("all");
-	const [clientFilter, setClientFilter] = useState("");
-	const [noteDraft, setNoteDraft] = useState("");
+	const [clients, setClients] = useState<Client[]>([]);
+	const [projects, setProjects] = useState<Project[]>([]);
+	const [selectedClientId, setSelectedClientId] = useState("");
+	const [selectedProjectId, setSelectedProjectId] = useState("");
+	const [bankName, setBankName] = useState("");
+	const [accountName, setAccountName] = useState("");
+	const [accountNumber, setAccountNumber] = useState("");
+	const [swiftIfsc, setSwiftIfsc] = useState("");
 	const [loading, setLoading] = useState(true);
-	const [actionLoading, setActionLoading] = useState(false);
+	const [generating, setGenerating] = useState(false);
 
-	const loadInvoices = useCallback(async () => {
-		const params: ListInvoicesQuery = {};
-		if (statusFilter !== "all") params.status = statusFilter as ListInvoicesQuery["status"];
-		if (clientFilter.trim()) params.client_id = clientFilter.trim();
-		const list = await invoiceService.listInvoices(params);
-		const normalized = list.map(normalizeInvoice).filter((item) => item.invoiceId);
-		setInvoices(normalized);
-		if (!selectedInvoiceId && normalized[0]?.invoiceId) {
-			setSelectedInvoiceId(normalized[0].invoiceId);
-			setNoteDraft(normalized[0].notes || "");
-		}
-	}, [clientFilter, selectedInvoiceId, statusFilter]);
-
-	const loadAll = useCallback(async () => {
+	const loadOptions = useCallback(async () => {
 		setLoading(true);
 		try {
-			const [statsRes] = await Promise.all([invoiceService.getInvoiceStats(), loadInvoices()]);
-			setStats(asRecord(statsRes));
+			const [clientsRes, projectsRes] = await Promise.all([clientService.listClients(), projectService.listProjects()]);
+			setClients((clientsRes || []).filter((client) => client.is_active !== false));
+			setProjects((projectsRes || []).filter((project) => project.is_active !== false));
 		} catch (error: any) {
-			const message = error?.response?.data?.message || error?.response?.data?.detail || error?.message || "Failed to load invoices.";
+			const message = error?.response?.data?.message || error?.response?.data?.detail || error?.message || "Failed to load clients and projects.";
 			toast.error(message);
+			setClients([]);
+			setProjects([]);
 		} finally {
 			setLoading(false);
 		}
-	}, [loadInvoices]);
+	}, []);
 
 	useEffect(() => {
-		loadAll();
-	}, [loadAll]);
+		loadOptions();
+	}, [loadOptions]);
 
-	const selectedInvoice = useMemo(() => invoices.find((item) => item.invoiceId === selectedInvoiceId) || null, [invoices, selectedInvoiceId]);
+	const clientProjects = useMemo(() => {
+		if (!selectedClientId) return [] as Project[];
+		return projects.filter((project) => String(project.client) === selectedClientId);
+	}, [projects, selectedClientId]);
 
 	useEffect(() => {
-		if (selectedInvoice) setNoteDraft(selectedInvoice.notes || "");
-	}, [selectedInvoice]);
+		if (!selectedProjectId) return;
+		const existsForClient = clientProjects.some((project) => project.id === selectedProjectId);
+		if (!existsForClient) setSelectedProjectId("");
+	}, [clientProjects, selectedProjectId]);
 
-	const totalAmount = useMemo(() => {
-		const apiTotal = toNumber(stats.total_invoiced ?? stats.total_amount, NaN);
-		if (Number.isFinite(apiTotal)) return apiTotal;
-		return invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
-	}, [invoices, stats]);
+	const selectedClient = useMemo(() => clients.find((client) => client.id === selectedClientId) || null, [clients, selectedClientId]);
+	const selectedProject = useMemo(() => projects.find((project) => project.id === selectedProjectId) || null, [projects, selectedProjectId]);
 
-	const collectedAmount = useMemo(() => {
-		const apiCollected = toNumber(stats.total_collected ?? stats.paid_amount, NaN);
-		if (Number.isFinite(apiCollected)) return apiCollected;
-		return invoices.reduce((sum, invoice) => sum + invoice.paid, 0);
-	}, [invoices, stats]);
-
-	const collectionRate = totalAmount > 0 ? (collectedAmount / totalAmount) * 100 : 0;
-
-	const revenueData = useMemo(() => {
-		const monthMap = new Map<string, number>();
-		for (let i = 5; i >= 0; i -= 1) {
-			const d = new Date();
-			d.setMonth(d.getMonth() - i);
-			const key = d.toLocaleString("en-US", { month: "short" });
-			monthMap.set(key, 0);
+	const handleGenerateInvoice = async () => {
+		if (!selectedClientId) {
+			toast.error("Please select a client.");
+			return;
 		}
-		invoices.forEach((invoice) => {
-			if (!invoice.issueDate) return;
-			const d = new Date(invoice.issueDate);
-			if (Number.isNaN(d.getTime())) return;
-			const key = d.toLocaleString("en-US", { month: "short" });
-			if (!monthMap.has(key)) return;
-			monthMap.set(key, (monthMap.get(key) || 0) + invoice.amount);
-		});
-		return {
-			categories: Array.from(monthMap.keys()),
-			values: Array.from(monthMap.values()).map((v) => Number(v.toFixed(2))),
-		};
-	}, [invoices]);
+		if (!selectedProjectId) {
+			toast.error("Please select a project.");
+			return;
+		}
+		if (!bankName.trim() || !accountName.trim() || !accountNumber.trim() || !swiftIfsc.trim()) {
+			toast.error("Please enter all Bank / Payout details.");
+			return;
+		}
 
-	const revenueOptions = useChart({
-		chart: { toolbar: { show: false } },
-		stroke: { curve: "smooth", width: 3 },
-		dataLabels: { enabled: false },
-		xaxis: { categories: revenueData.categories },
-		colors: ["#2563eb"],
-	});
-
-	const runAction = async (action: () => Promise<unknown>, successMessage: string) => {
 		try {
-			setActionLoading(true);
-			await action();
-			await loadAll();
-			if (selectedInvoiceId) {
-				const paymentList = await invoiceService.listInvoicePayments(selectedInvoiceId);
-				setPayments((prev) => ({ ...prev, [selectedInvoiceId]: paymentList }));
-			}
-			toast.success(successMessage);
+			setGenerating(true);
+			const response = await invoiceService.generateInvoicePdf({
+				client_id: selectedClientId,
+				project_id: selectedProjectId,
+				payout_details: {
+					bank_name: bankName.trim(),
+					account_name: accountName.trim(),
+					account_number: accountNumber.trim(),
+					swift_ifsc: swiftIfsc.trim(),
+				},
+			});
+
+			const safeClient = sanitizeFileName(selectedClient?.name || selectedClientId);
+			const safeProject = sanitizeFileName(selectedProject?.name || selectedProjectId);
+			const fileName = `invoice-${safeClient}-${safeProject}.pdf`;
+
+			await downloadFromApiResponse(response, fileName);
+			toast.success("Invoice generated successfully.");
 		} catch (error: any) {
-			const message = error?.response?.data?.message || error?.response?.data?.detail || error?.message || "Action failed.";
+			const message = error?.response?.data?.message || error?.response?.data?.detail || error?.message || "Failed to generate invoice PDF.";
 			toast.error(message);
 		} finally {
-			setActionLoading(false);
+			setGenerating(false);
 		}
 	};
-
-	const handleLoadPayments = async () => {
-		if (!selectedInvoiceId) return;
-		try {
-			setActionLoading(true);
-			const paymentList = await invoiceService.listInvoicePayments(selectedInvoiceId);
-			setPayments((prev) => ({ ...prev, [selectedInvoiceId]: paymentList }));
-		} catch (error: any) {
-			toast.error(error?.response?.data?.message || error?.message || "Failed to load payments.");
-		} finally {
-			setActionLoading(false);
-		}
-	};
-
-	const handleCreateInvoice = async () => {
-		const source = selectedInvoice || invoices[0];
-		if (!source?.clientId) {
-			toast.error("No client available to create invoice.");
-			return;
-		}
-		const next = await invoiceService.getNextInvoiceNumber();
-		const nextNumber = String((next as any)?.next_number || (next as any)?.invoice_number || `INV-${Date.now()}`);
-		const issueDate = dateInput(new Date());
-		const dueDate = dateInput(new Date(Date.now() + 7 * 24 * 3600 * 1000));
-		const payload: InvoiceCreatePayload = {
-			invoice_number: nextNumber,
-			client: source.clientId,
-			project: source.projectId,
-			issue_date: issueDate,
-			due_date: dueDate,
-			currency: source.currency || "USD",
-			invoice_type: source.type || "hourly",
-			status: "draft",
-			subtotal: "0.00",
-			discount_total: "0.00",
-			tax_total: "0.00",
-			total_amount: "0.00",
-			paid_amount: "0.00",
-			balance_amount: "0.00",
-			notes: "Auto-created from dashboard",
-			terms: "Pay within 7 days",
-			metadata_json: {},
-			line_items: [
-				{
-					item_type: "service",
-					title: "Freelance Services",
-					description: "Auto-generated line item",
-					quantity: "1.00",
-					unit: "hour",
-					unit_price: "0.00",
-					tax_percent: "0.00",
-					discount_percent: "0.00",
-					line_total: "0.00",
-					sort_order: 0,
-					task: null,
-					time_entry: null,
-				},
-			],
-		};
-		await runAction(() => invoiceService.createInvoice(payload), "Invoice created.");
-	};
-
-	const handleCreateFromTimeEntries = async () => {
-		if (!selectedInvoice?.clientId) {
-			toast.error("Select an invoice with client to use this action.");
-			return;
-		}
-		await runAction(
-			() =>
-				invoiceService.createFromTimeEntries({
-					client_id: selectedInvoice.clientId as string,
-					project_id: selectedInvoice.projectId,
-					currency: selectedInvoice.currency || "USD",
-				}),
-			"Invoice generated from time entries.",
-		);
-	};
-
-	const handleViewDetail = async () => {
-		if (!selectedInvoiceId) return;
-		try {
-			setActionLoading(true);
-			const detail = await invoiceService.getInvoice(selectedInvoiceId);
-			const status = String((detail as any)?.status || "unknown");
-			toast.success(`Invoice detail loaded (status: ${status}).`);
-		} catch (error: any) {
-			toast.error(error?.response?.data?.message || error?.message || "Failed to get invoice detail.");
-		} finally {
-			setActionLoading(false);
-		}
-	};
-
-	const handleSaveNote = async () => {
-		if (!selectedInvoiceId) return;
-		await runAction(() => invoiceService.updateInvoice(selectedInvoiceId, { notes: noteDraft }), "Invoice updated.");
-	};
-
-	const handleSubmit = async () => {
-		if (!selectedInvoiceId) return;
-		await runAction(() => invoiceService.submitInvoice(selectedInvoiceId), "Invoice submitted.");
-	};
-
-	const handleSend = async () => {
-		if (!selectedInvoiceId) return;
-		await runAction(() => invoiceService.sendInvoice(selectedInvoiceId), "Invoice sent.");
-	};
-
-	const handleReminder = async () => {
-		if (!selectedInvoiceId) return;
-		await runAction(() => invoiceService.sendInvoiceReminder(selectedInvoiceId), "Reminder sent.");
-	};
-
-	const handleMarkPaid = async () => {
-		if (!selectedInvoiceId || !selectedInvoice) return;
-		await runAction(
-			() =>
-				invoiceService.markInvoicePaid(selectedInvoiceId, {
-					payment_date: dateInput(new Date()),
-					amount: String(Math.max(0, selectedInvoice.amount - selectedInvoice.paid).toFixed(2)),
-					payment_method: "bank_transfer",
-					transaction_reference: `AUTO-${Date.now()}`,
-				}),
-			"Invoice marked paid.",
-		);
-	};
-
-	const handleAddPayment = async () => {
-		if (!selectedInvoiceId || !selectedInvoice) return;
-		await runAction(
-			() =>
-				invoiceService.createInvoicePayment(selectedInvoiceId, {
-					payment_date: dateInput(new Date()),
-					amount: "50.00",
-					currency: selectedInvoice.currency || "USD",
-					payment_method: "upi",
-					transaction_reference: `UPI-${Date.now()}`,
-					payment_note: "Quick partial payment",
-					status: "completed",
-				}),
-			"Payment added.",
-		);
-	};
-
-	const handleGeneratePdf = async () => {
-		if (!selectedInvoiceId) return;
-		try {
-			setActionLoading(true);
-			const data = await invoiceService.getInvoicePdf(selectedInvoiceId);
-			if (typeof window === "undefined") return;
-			if (data instanceof Blob) {
-				if ((data.type || "").includes("application/json")) {
-					const text = await data.text();
-					let parsed: any = {};
-					try {
-						parsed = JSON.parse(text);
-					} catch {
-						parsed = {};
-					}
-					const wrapped = parsed?.data && typeof parsed.data === "object" ? parsed.data : parsed;
-					const url = String(wrapped?.url || wrapped?.file_url || wrapped?.pdf_url || "");
-					if (url) {
-						window.open(url, "_blank", "noopener,noreferrer");
-						toast.success("PDF opened.");
-						return;
-					}
-					const message = String(wrapped?.message || wrapped?.detail || "").trim();
-					if (message) {
-						toast.error(message);
-						return;
-					}
-					toast.error("PDF API returned JSON instead of a file.");
-					return;
-				}
-
-				const blobUrl = URL.createObjectURL(data);
-				const link = document.createElement("a");
-				link.href = blobUrl;
-				link.download = `${selectedInvoice?.invoiceNumber || selectedInvoiceId}.pdf`;
-				document.body.appendChild(link);
-				link.click();
-				document.body.removeChild(link);
-				setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
-				toast.success("PDF downloaded.");
-				return;
-			}
-			const url = String((data as any)?.url || (data as any)?.file_url || "");
-			if (url) {
-				window.open(url, "_blank", "noopener,noreferrer");
-				toast.success("PDF opened.");
-				return;
-			}
-			toast.info("PDF response received.");
-		} catch (error: any) {
-			toast.error(error?.response?.data?.message || error?.message || "Failed to generate PDF.");
-		} finally {
-			setActionLoading(false);
-		}
-	};
-
-	const selectedPayments = selectedInvoiceId ? payments[selectedInvoiceId] || [] : [];
 
 	if (loading) {
 		return (
 			<div className="space-y-4">
 				<Card>
-					<CardContent className="py-10 text-sm text-muted-foreground">Loading invoicing data...</CardContent>
+					<CardContent className="py-10 text-sm text-muted-foreground">Loading invoice options...</CardContent>
 				</Card>
 			</div>
 		);
@@ -398,164 +165,104 @@ export default function InvoicingPage() {
 
 	return (
 		<div className="space-y-4">
-			<Card className="overflow-hidden border-0 shadow-md">
+			<Card className="overflow-hidden border-0 shadow-sm">
 				<CardContent className="relative p-0">
-					<div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-700 opacity-95" />
-					<div className="relative grid gap-3 p-6 text-white lg:grid-cols-3">
-						<div className="space-y-2 lg:col-span-2">
-							<Badge variant="warning">Automated Invoicing</Badge>
-							<h2 className="text-2xl font-semibold">Generate polished invoices from hourly or fixed pricing.</h2>
-							<p className="text-sm text-white/80">Live API integration for stats, list, creation, payments, reminders, and PDF export.</p>
+					<div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700" />
+					<div className="relative flex flex-col gap-3 p-6 text-white md:flex-row md:items-center md:justify-between">
+						<div className="space-y-2">
+							<Badge variant="secondary">Invoice</Badge>
+							<h2 className="text-2xl font-semibold">Generate Invoice PDF</h2>
+							<p className="text-sm text-white/80">Select a client and project, then generate and download the invoice PDF.</p>
 						</div>
-						<div className="rounded-xl bg-black/20 p-4">
-							<div className="text-xs text-white/70">Collection Rate</div>
-							<div className="text-4xl font-bold">{collectionRate.toFixed(0)}%</div>
-							<Progress value={collectionRate} className="mt-2" />
-						</div>
+						<Button variant="secondary" onClick={loadOptions} disabled={generating}>
+							<Icon icon="solar:refresh-bold-duotone" /> Refresh
+						</Button>
 					</div>
 				</CardContent>
 			</Card>
 
-			<div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-				<Card>
-					<CardHeader className="pb-0">
-						<CardTitle>Total Invoiced</CardTitle>
+			<div className="grid gap-4 lg:grid-cols-3">
+				<Card className="lg:col-span-2">
+					<CardHeader>
+						<CardTitle>Invoice Details</CardTitle>
+						<CardDescription>Only required fields for now. You can connect your final backend API later.</CardDescription>
 					</CardHeader>
-					<CardContent>
-						<div className="text-3xl font-semibold">{formatCurrency(totalAmount)}</div>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardHeader className="pb-0">
-						<CardTitle>Total Collected</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className="text-3xl font-semibold">{formatCurrency(collectedAmount)}</div>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardHeader className="pb-0">
-						<CardTitle>Outstanding</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<div className="text-3xl font-semibold">{formatCurrency(totalAmount - collectedAmount)}</div>
-					</CardContent>
-				</Card>
-			</div>
-
-			<div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-				<Card className="xl:col-span-2">
-					<CardHeader className="pb-0">
-						<CardTitle>Invoice List</CardTitle>
-						<CardDescription>GET `/invoices/` with status/client filters and live state actions.</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-3">
-						<div className="grid gap-2 md:grid-cols-3">
-							<Select value={statusFilter} onValueChange={setStatusFilter}>
-								<SelectTrigger>
-									<SelectValue placeholder="Status" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All</SelectItem>
-									<SelectItem value="draft">Draft</SelectItem>
-									<SelectItem value="submitted">Submitted</SelectItem>
-									<SelectItem value="sent">Sent</SelectItem>
-									<SelectItem value="paid">Paid</SelectItem>
-									<SelectItem value="overdue">Overdue</SelectItem>
-								</SelectContent>
-							</Select>
-							<Input value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} placeholder="Client UUID (optional)" />
-							<Button variant="outline" onClick={loadAll} disabled={actionLoading}>Refresh</Button>
+					<CardContent className="space-y-4">
+						<div className="grid gap-4 md:grid-cols-2">
+							<div className="space-y-2">
+								<div className="text-sm font-medium">Client</div>
+								<Select value={selectedClientId} onValueChange={setSelectedClientId}>
+									<SelectTrigger>
+										<SelectValue placeholder="Select client" />
+									</SelectTrigger>
+									<SelectContent>
+										{clients.map((client) => (
+											<SelectItem key={client.id} value={client.id}>
+												{client.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+							<div className="space-y-2">
+								<div className="text-sm font-medium">Project</div>
+								<Select value={selectedProjectId} onValueChange={setSelectedProjectId} disabled={!selectedClientId}>
+									<SelectTrigger>
+										<SelectValue placeholder={selectedClientId ? "Select project" : "Select client first"} />
+									</SelectTrigger>
+									<SelectContent>
+										{clientProjects.map((project) => (
+											<SelectItem key={project.id} value={project.id}>
+												{project.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
 						</div>
 
-						{invoices.map((invoice) => {
-							const duePercent = invoice.amount > 0 ? Math.round((invoice.paid / invoice.amount) * 100) : 0;
-							const isSelected = selectedInvoiceId === invoice.invoiceId;
-							return (
-								<div
-									key={invoice.invoiceId}
-									className={`cursor-pointer rounded-lg border p-4 ${isSelected ? "border-primary" : ""}`}
-									onClick={() => setSelectedInvoiceId(invoice.invoiceId)}
-								>
-									<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-										<div>
-											<div className="font-semibold">{invoice.invoiceNumber}</div>
-											<div className="text-xs text-muted-foreground">
-												{invoice.client} • {invoice.type}
-											</div>
-										</div>
-										<div className="flex items-center gap-2">
-											<Badge variant={statusVariant(invoice.status)}>{invoice.status}</Badge>
-											<div className="font-semibold">{formatCurrency(invoice.amount, invoice.currency)}</div>
-										</div>
-									</div>
-									<div className="mt-2 text-xs text-muted-foreground">Due: {invoice.dueDate}</div>
-									<div className="mt-2">
-										<div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-											<span>Payment Progress</span>
-											<span>{duePercent}%</span>
-										</div>
-										<Progress value={duePercent} />
-									</div>
-								</div>
-							);
-						})}
-						{!invoices.length ? <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">No invoices found.</div> : null}
+						<div className="space-y-3">
+							<div className="text-sm font-medium">Bank / Payout Details</div>
+							<div className="grid gap-3 md:grid-cols-2">
+								<Input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Bank Name" />
+								<Input value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder="Account Name" />
+								<Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Account Number" />
+								<Input value={swiftIfsc} onChange={(e) => setSwiftIfsc(e.target.value)} placeholder="SWIFT / IFSC" />
+							</div>
+						</div>
+
+						<Button
+							className="w-full md:w-auto"
+							onClick={handleGenerateInvoice}
+							disabled={generating || !selectedClientId || !selectedProjectId || !bankName.trim() || !accountName.trim() || !accountNumber.trim() || !swiftIfsc.trim()}
+						>
+							<Icon icon="solar:file-download-bold-duotone" /> {generating ? "Generating..." : "Generate Invoice"}
+						</Button>
 					</CardContent>
 				</Card>
 
 				<Card>
-					<CardHeader className="pb-0">
-						<CardTitle>Invoice Actions</CardTitle>
-						<CardDescription>Create/update/submit/send/reminder/paid/payments/pdf endpoints.</CardDescription>
+					<CardHeader>
+						<CardTitle>Summary</CardTitle>
+						<CardDescription>Quick confirmation before generating.</CardDescription>
 					</CardHeader>
-					<CardContent className="space-y-2">
-						<Button className="w-full" onClick={handleCreateInvoice} disabled={actionLoading}>
-							<Icon icon="solar:add-circle-bold-duotone" /> Create Invoice
-						</Button>
-						<Button className="w-full" variant="outline" onClick={handleCreateFromTimeEntries} disabled={actionLoading || !selectedInvoice}>
-							<Icon icon="solar:clock-circle-bold-duotone" /> From Time Entries
-						</Button>
-						<Button className="w-full" variant="secondary" onClick={handleSubmit} disabled={actionLoading || !selectedInvoiceId}>
-							<Icon icon="solar:document-text-bold-duotone" /> Submit
-						</Button>
-						<Button className="w-full" variant="secondary" onClick={handleSend} disabled={actionLoading || !selectedInvoiceId}>
-							<Icon icon="solar:letter-bold-duotone" /> Send
-						</Button>
-						<Button className="w-full" variant="outline" onClick={handleReminder} disabled={actionLoading || !selectedInvoiceId}>
-							<Icon icon="solar:bell-bold-duotone" /> Reminder
-						</Button>
-						<Button className="w-full" variant="ghost" onClick={handleMarkPaid} disabled={actionLoading || !selectedInvoiceId}>
-							<Icon icon="solar:card-bold-duotone" /> Mark Paid
-						</Button>
-						<Button className="w-full" variant="outline" onClick={handleAddPayment} disabled={actionLoading || !selectedInvoiceId}>
-							<Icon icon="solar:wallet-bold-duotone" /> Add Payment
-						</Button>
-						<Button className="w-full" variant="outline" onClick={handleLoadPayments} disabled={actionLoading || !selectedInvoiceId}>
-							<Icon icon="solar:list-bold-duotone" /> Load Payments ({selectedPayments.length})
-						</Button>
-						<Button className="w-full" variant="outline" onClick={handleGeneratePdf} disabled={actionLoading || !selectedInvoiceId}>
-							<Icon icon="solar:document-bold-duotone" /> Generate PDF
-						</Button>
-						<Button className="w-full" variant="outline" onClick={handleViewDetail} disabled={actionLoading || !selectedInvoiceId}>
-							<Icon icon="solar:eye-bold-duotone" /> View Detail
-						</Button>
-						<Input value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="Update note" />
-						<Button className="w-full" variant="outline" onClick={handleSaveNote} disabled={actionLoading || !selectedInvoiceId}>
-							<Icon icon="solar:pen-bold-duotone" /> Save Note
-						</Button>
+					<CardContent className="space-y-3 text-sm">
+						<div className="rounded-md border p-3">
+							<div className="text-muted-foreground">Selected Client</div>
+							<div className="font-medium">{selectedClient?.name || "-"}</div>
+						</div>
+						<div className="rounded-md border p-3">
+							<div className="text-muted-foreground">Selected Project</div>
+							<div className="font-medium">{selectedProject?.name || "-"}</div>
+						</div>
+						<div className="rounded-md border p-3">
+							<div className="text-muted-foreground">Bank Name</div>
+							<div className="font-medium">{bankName || "-"}</div>
+						</div>
+						<div className="text-xs text-muted-foreground">PDF is expected from backend API response and will be downloaded automatically.</div>
 					</CardContent>
 				</Card>
 			</div>
-
-			<Card>
-				<CardHeader className="pb-0">
-					<CardTitle>Monthly Invoicing Trend</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<Chart type="area" height={280} options={revenueOptions} series={[{ name: "Billed", data: revenueData.values }]} />
-				</CardContent>
-			</Card>
 		</div>
 	);
 }

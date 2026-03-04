@@ -55,6 +55,7 @@ export const ANALYSIS_API = {
 export const INVOICE_API = {
 	stats: "/invoices/stats/",
 	fromTimeEntries: "/invoices/from-time-entries/",
+	generate: "/invoices/generate/",
 	list: "/invoices/",
 	detail: (invoiceId: string) => `/invoices/${invoiceId}/`,
 	submit: (invoiceId: string) => `/invoices/${invoiceId}/submit/`,

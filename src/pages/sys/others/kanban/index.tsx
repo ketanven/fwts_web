@@ -30,6 +30,10 @@ const defaultState: DndDataType = {
 };
 
 const asRecord = (value: unknown) => (value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, any>) : {});
+const toApiId = (value: string | number) => {
+	const asNumber = Number(value);
+	return Number.isFinite(asNumber) ? asNumber : value;
+};
 const firstArrayByKeys = (source: Record<string, any>, keys: string[]): Record<string, any>[] | undefined => {
 	for (const key of keys) {
 		const value = source[key];
@@ -50,6 +54,11 @@ const toKanbanData = (boardDetail: unknown): DndDataType => {
 	const detail = asRecord(boardDetail);
 	const detailData = asRecord(detail.data);
 	const boardData = asRecord(detail.board);
+	const boardCards =
+		firstArrayByKeys(detail, ["cards", "kanban_cards", "tasks", "items"]) ||
+		firstArrayByKeys(detailData, ["cards", "kanban_cards", "tasks", "items"]) ||
+		firstArrayByKeys(boardData, ["cards", "kanban_cards", "tasks", "items"]) ||
+		[];
 	const columnRows =
 		firstArrayByKeys(detail, ["columns", "kanban_columns", "board_columns", "items"]) ||
 		firstArrayByKeys(detailData, ["columns", "kanban_columns", "board_columns", "items"]) ||
@@ -65,10 +74,18 @@ const toKanbanData = (boardDetail: unknown): DndDataType => {
 		const column = asRecord(columnRow);
 		const columnId = String(column.id ?? "");
 		if (!columnId) return;
-		const cards =
+		const cardsFromColumn =
 			firstArrayByKeys(column, ["cards", "kanban_cards", "tasks", "items"]) ||
 			firstArrayByKeys(asRecord(column.data), ["cards", "kanban_cards", "tasks", "items"]) ||
 			[];
+		const cardsFromBoard = boardCards.filter((cardRow) => String(asRecord(cardRow).column ?? "") === columnId);
+		const cardMap = new Map<string, Record<string, any>>();
+		[...cardsFromColumn, ...cardsFromBoard].forEach((cardRow) => {
+			const card = asRecord(cardRow);
+			const cardId = String(card.id ?? card.card_id ?? "");
+			if (cardId) cardMap.set(cardId, card);
+		});
+		const cards = Array.from(cardMap.values());
 		const sortedCards = [...cards].sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0));
 
 		const taskIds: string[] = [];
@@ -207,10 +224,9 @@ export default function Kanban() {
 					name: newBoardName.trim(),
 					description: "",
 					color: "#0ea5e9",
-					icon: "layout",
+					icon: "kanban",
 					visibility: "private",
 					sort_order: boards.length + 1,
-					is_archived: false,
 				}),
 			"Board created.",
 			false,
@@ -282,7 +298,8 @@ export default function Kanban() {
 				if (activeColumn && overColumn) {
 					if (activeColumn.id === overColumn.id) {
 						const currentIdx = activeColumn.taskIds.indexOf(activeDragId);
-						const overIdx = activeColumn.taskIds.indexOf(overDragId);
+						const overIdxRaw = activeColumn.taskIds.indexOf(overDragId);
+						const overIdx = overIdxRaw >= 0 ? overIdxRaw : activeColumn.taskIds.length - 1;
 						const newTaskIds = arrayMove(activeColumn.taskIds, currentIdx, overIdx);
 						setState((prev) => ({
 							...prev,
@@ -295,7 +312,7 @@ export default function Kanban() {
 							},
 						}));
 						try {
-							await kanbanService.moveCard(activeDragId, { column_id: activeColumn.id, sort_order: overIdx + 1 });
+							await kanbanService.moveCard(activeDragId, { column_id: toApiId(activeColumn.id), sort_order: overIdx + 1 });
 						} catch {
 							await loadBoardData(selectedBoardId);
 						}
@@ -314,7 +331,7 @@ export default function Kanban() {
 							},
 						}));
 						try {
-							await kanbanService.moveCard(activeDragId, { column_id: overColumn.id, sort_order: insertIndex + 1 });
+							await kanbanService.moveCard(activeDragId, { column_id: toApiId(overColumn.id), sort_order: insertIndex + 1 });
 						} catch {
 							await loadBoardData(selectedBoardId);
 						}
@@ -343,21 +360,24 @@ export default function Kanban() {
 	};
 
 	const createTask = async (columnId: string, task: Task) => {
+		const dueDate =
+			typeof task.date === "string" ? task.date : task.date ? new Date(task.date).toISOString().slice(0, 10) : null;
 		await runAction(
-			() =>
-				kanbanService.createCard(columnId, {
-					project: task.projectId || null,
-					task: task.taskId || null,
+			() => {
+				const payload: Record<string, any> = {
 					title: task.title,
 					description: task.description || "",
-					priority: task.priority,
-					due_date: typeof task.date === "string" ? task.date : task.date ? new Date(task.date).toISOString().slice(0, 10) : null,
+					priority: task.priority || "medium",
+					due_date: dueDate,
 					estimate_hours: "0.00",
 					actual_hours: "0.00",
 					status: task.status || "todo",
 					sort_order: (state.columns[columnId]?.taskIds.length || 0) + 1,
-					is_archived: false,
-				}),
+				};
+				if (task.projectId) payload.project = task.projectId;
+				if (task.taskId) payload.task = task.taskId;
+				return kanbanService.createCard(columnId, payload);
+			},
 			"Card created.",
 		);
 	};
