@@ -36,7 +36,7 @@ export type ClientFormValues = {
 type ClientFormProps = {
 	mode: ClientFormMode;
 	initialValues?: Client | null;
-	onSave: (payload: ClientCreateReq | ClientUpdateReq) => Promise<void>;
+	onSave: (payload: ClientCreateReq | ClientUpdateReq) => Promise<void | any>;
 	onSuccess?: () => void;
 	submitLabel?: string;
 };

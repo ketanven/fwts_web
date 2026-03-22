@@ -37,7 +37,7 @@ export type TaskFormValues = {
 type TaskFormProps = {
 	mode: TaskFormMode;
 	initialValues?: Task | null;
-	onSave: (payload: TaskCreateReq | TaskUpdateReq) => Promise<void>;
+	onSave: (payload: TaskCreateReq | TaskUpdateReq) => Promise<void | any>;
 	onSuccess?: () => void;
 	submitLabel?: string;
 };

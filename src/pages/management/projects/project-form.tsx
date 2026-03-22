@@ -37,7 +37,7 @@ export type ProjectFormValues = {
 type ProjectFormProps = {
 	mode: ProjectFormMode;
 	initialValues?: Project | null;
-	onSave: (payload: ProjectCreateReq | ProjectUpdateReq) => Promise<void>;
+	onSave: (payload: ProjectCreateReq | ProjectUpdateReq) => Promise<void | any>;
 	onSuccess?: () => void;
 	submitLabel?: string;
 };
