@@ -98,7 +98,7 @@ export const REPORTS_API = {
 };
 
 export const PRODUCTIVITY_API = {
-	summary: "/productivity/summary/",
+	summary: "/productivity/summary/", 
 	weeklyTrend: "/productivity/weekly-trend/",
 	taskVariance: "/productivity/task-variance/",
 	onTimeRate: "/productivity/on-time-rate/",
